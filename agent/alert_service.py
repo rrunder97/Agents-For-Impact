@@ -5,8 +5,10 @@ Dispatches high-urgency notifications to county emergency managers.
 
 import json
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
-from schemas import FipsAlertPayload, GroundingPriority
+try:
+    from .schemas import FipsAlertPayload, GroundingPriority
+except ImportError:
+    from schemas import FipsAlertPayload, GroundingPriority
 
 
 class EmergencyInterventionService:

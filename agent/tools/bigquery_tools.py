@@ -200,11 +200,12 @@ def query_hazard_tracts(
     sql = f"""
     SELECT 
         geo_id,
+        POPULATION,
         BUILDVALUE,
         HRCN_AFREQ,
         CFLD_AFREQ,
-        HRCN_EALB,
-        CFLD_EALB
+        HRCN_EALP,
+        CFLD_EALP
     FROM `{TABLE_HAZARD_TRACTS}`
     {where_sql}
     ORDER BY BUILDVALUE DESC

@@ -5,17 +5,30 @@ Implements the 'Skeptic' Sentinel persona and coordinates BigQuery & Maps tools.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-
-from schemas import (
-    CheckShelterReadinessInput,
-    HazardType,
-    GroundingPriority,
-    AuditReportItem,
-    FederalShelterRecord
-)
-from bigquery_service import BigQueryGroundingService
-from maps_service import GoogleMapsGroundingService
-from alert_service import EmergencyInterventionService
+try:
+    from .schemas import (
+        CheckShelterReadinessInput,
+        HazardType,
+        GroundingPriority,
+        AuditReportItem,
+        FederalShelterRecord
+    )
+except ImportError:
+    from schemas import (
+        CheckShelterReadinessInput,
+        HazardType,
+        GroundingPriority,
+        AuditReportItem,
+        FederalShelterRecord
+    )
+try:
+    from .bigquery_service import BigQueryGroundingService
+    from .maps_service import GoogleMapsGroundingService
+    from .alert_service import EmergencyInterventionService
+except ImportError:
+    from bigquery_service import BigQueryGroundingService
+    from maps_service import GoogleMapsGroundingService
+    from alert_service import EmergencyInterventionService
 
 
 SKEPTIC_SYSTEM_INSTRUCTIONS = """

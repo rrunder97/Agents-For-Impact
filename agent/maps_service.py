@@ -4,12 +4,18 @@ Grounds federal claims using Google Maps Places API and Routes API.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
-from schemas import (
-    GoogleMapsGroundingResult,
-    PedestrianRouteResult,
-    FederalShelterRecord
-)
+try:
+    from .schemas import (
+        GoogleMapsGroundingResult,
+        PedestrianRouteResult,
+        FederalShelterRecord
+    )
+except ImportError:
+    from schemas import (
+        GoogleMapsGroundingResult,
+        PedestrianRouteResult,
+        FederalShelterRecord
+    )
 
 
 class GoogleMapsGroundingService:

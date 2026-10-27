@@ -41,10 +41,17 @@ from .maps_service import GoogleMapsGroundingService
 from .alert_service import EmergencyInterventionService
 from .bigquery_nl_query import BigQueryNLQueryEngine, TARGET_VIEW
 
+from .host_agent import host_instruction
+
 agent_context_doc = load_agent_context()
 
 main_coordinator_instruction = f"""
-You are the Chief Emergency Evacuation & Vulnerable Population Readiness Coordinator and Sentinel Agent.
+{host_instruction}
+
+================================================================================
+CHIEF SENTINEL AUDIT & EMERGENCY COORDINATOR PROTOCOL
+================================================================================
+You are also the Chief Emergency Evacuation & Vulnerable Population Readiness Coordinator and Sentinel Agent.
 Your mission is to audit designated emergency shelters and assist emergency managers and vulnerable citizens before and during extreme weather events, focusing on transit-dependent and medically vulnerable populations.
 
 Target Database View:
@@ -67,15 +74,14 @@ Operating Protocol: The "Skeptic" Sentinel:
    - If accessibility data is blank in federal records, explicitly state that it is UNRECORDED (not "no").
    - Structure final briefs starting with `[VULNERABILITY DETECTED]` if failures exist.
 
-### COLLABORATION ARCHITECTURE:
-You have two specialized sub-agents:
-1. `emergency_agent`:
-   - Handles BigQuery data querying across shelters, care facilities, census tracts, and hazard tables.
-   - Computes distances, validates wheelchair/pet/medical capabilities, and enforces flood hazard exclusions.
-2. `maps_agent`:
-   - Resolves street addresses, neighborhood names, and zip codes to latitude and longitude coordinates.
-   - Verifies whether historical FEMA buildings still exist and operate on live Google Maps.
-   - Provides Google Maps navigation deep links.
+### COLLABORATION ARCHITECTURE & SUB-AGENTS:
+You can delegate to or collaborate with specialized domain sub-agents based on the user's operational persona:
+1. `first_responder_agent`: Tactical field coordination, hazard overlays, and staging coordinates for Fire, Police, EMS, and Search & Rescue.
+2. `public_govt_agent`: Civil infrastructure, county FIPS vulnerability, SVI metrics, and macro resource/generator allocation for emergency managers.
+3. `medical_agent`: Healthcare logistics, CMS certified bed capacity (CCN), and medical-grade shelter triage for hospitals and care facilities.
+4. `citizen_agent`: Individual citizen and evacuee guidance, open shelter discovery, flood avoidance, and Google Maps direct links.
+5. `emergency_agent`: Direct BigQuery data queries across shelter registries, hazard tracts, and vulnerability models.
+6. `maps_agent`: Dedicated Google Maps geospatial grounding, address geocoding, and verification.
 
 {agent_context_doc}
 """
@@ -153,22 +159,34 @@ def send_fips_alert(
 
 
 from .tools.maps_tools import geocode_address, verify_shelter_on_google_maps
+from .tools.profile_tools import build_user_profile
+from .sub_agents import (
+    first_responder_agent,
+    public_govt_agent,
+    medical_agent,
+    citizen_agent
+)
 
 coordinator_tools = [
     audit_shelter_ground_truth,
     send_fips_alert,
     geocode_address,
     verify_shelter_on_google_maps,
+    build_user_profile,
 ]
 
 if ADK_AVAILABLE and Agent is not None:
     root_agent = Agent(
         name="root_agent",
-        description="Chief Evacuation Readiness Coordinator orchestrating Emergency Data and Google Maps Grounding sub-agents.",
+        description="Master Coordinator and Router managing persona onboarding, tactical response, public government, medical logistics, and citizen evacuation.",
         model=DEFAULT_MODEL,
         instruction=main_coordinator_instruction,
         tools=coordinator_tools,
         sub_agents=[
+            first_responder_agent,
+            public_govt_agent,
+            medical_agent,
+            citizen_agent,
             emergency_agent,
             maps_agent,
         ]

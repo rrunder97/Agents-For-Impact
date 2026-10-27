@@ -4,8 +4,10 @@ Cross-references federal tables: hazard_tracts, vulnerability_tracts, and shelte
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime
-from schemas import FederalShelterRecord, HazardType
+try:
+    from .schemas import FederalShelterRecord, HazardType
+except ImportError:
+    from schemas import FederalShelterRecord, HazardType
 
 
 BIGQUERY_DISCOVERY_SQL = """
