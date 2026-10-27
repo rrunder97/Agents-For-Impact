@@ -72,8 +72,9 @@ tools:
         description: "Number of evacuee beds to reserve"
     statement: |
       UPDATE `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.evacuation_readiness.shelters`
-      SET available_capacity = GREATEST(0.0, COALESCE(available_capacity, evacuation_capacity) - @count)
+      SET available_capacity = COALESCE(available_capacity, evacuation_capacity, 0.0) - @count
       WHERE CAST(shelter_id AS STRING) = @shelter_id
+        AND COALESCE(available_capacity, evacuation_capacity, 0.0) >= @count
 
   - name: query_care_facilities
     kind: bigquery-sql

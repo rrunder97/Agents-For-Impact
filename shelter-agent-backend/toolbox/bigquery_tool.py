@@ -178,9 +178,27 @@ def search_shelters_spatial(
         filtered.append(s)
     return filtered[:limit]
 
+_SIMULATED_CAPACITIES = {
+    367358: 100,
+    368035: 150,
+    367428: 120,
+    367226: 80,
+    367225: 100,
+}
+
 def book_shelter_capacity(shelter_id: int, count: int = 1) -> Dict[str, Any]:
-    """ADK Tool: Atomically reserves shelter spots and decrements capacity via MCP Toolbox."""
-    count = max(1, int(count))
+    """ADK Tool: Atomically reserves shelter spots and decrements capacity via MCP Toolbox or BigQuery DML."""
+    try:
+        count = int(count)
+    except (ValueError, TypeError):
+        count = 1
+
+    if count <= 0:
+        return {
+            "success": False,
+            "shelter_id": int(shelter_id) if str(shelter_id).isdigit() else shelter_id,
+            "error": "Number of seats / party size must be at least 1."
+        }
 
     # 1. Try MCP Toolbox
     mcp_res = _call_mcp_toolbox("book_shelter_capacity", {
@@ -188,6 +206,8 @@ def book_shelter_capacity(shelter_id: int, count: int = 1) -> Dict[str, Any]:
         "count": count
     })
     if mcp_res is not None:
+        if isinstance(mcp_res, dict) and not mcp_res.get("success", False):
+            return mcp_res
         return {
             "success": True,
             "shelter_id": int(shelter_id),
@@ -200,57 +220,117 @@ def book_shelter_capacity(shelter_id: int, count: int = 1) -> Dict[str, Any]:
     try:
         from google.cloud import bigquery
         bq_client = bigquery.Client(project=PROJECT_ID)
-        update_dml = f"""
-        UPDATE `{DATASET_TABLE}`
-        SET available_capacity = GREATEST(0.0, available_capacity - @count)
-        WHERE shelter_id = @shelter_id
-        """
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("shelter_id", "INT64", int(shelter_id)),
-                bigquery.ScalarQueryParameter("count", "FLOAT64", float(count)),
-            ]
-        )
-        job = bq_client.query(update_dml, job_config=job_config)
-        job.result()
 
+        # First, query current capacity of the requested shelter to prevent overbooking
         fetch_sql = f"""
         SELECT shelter_id, shelter_name, address_1, city, evacuation_capacity, available_capacity
         FROM `{DATASET_TABLE}`
         WHERE shelter_id = @shelter_id
         LIMIT 1
         """
-        fetch_job = bq_client.query(fetch_sql, job_config=job_config)
+        fetch_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("shelter_id", "INT64", int(shelter_id)),
+            ]
+        )
+        fetch_job = bq_client.query(fetch_sql, job_config=fetch_config)
         rows = list(fetch_job.result())
-        if rows:
-            row = rows[0]
-            raw_cap = row.evacuation_capacity
-            raw_avail = row.available_capacity
-            tot = int(raw_cap if raw_cap is not None else (raw_avail if raw_avail is not None else 100))
-            avail = int(raw_avail if raw_avail is not None else max(0, tot - count))
+        if not rows:
             return {
-                "success": True,
+                "success": False,
+                "shelter_id": int(shelter_id),
+                "error": f"Shelter #{shelter_id} not found."
+            }
+
+        row = rows[0]
+        raw_cap = row.evacuation_capacity
+        raw_avail = row.available_capacity
+        tot = int(raw_cap if raw_cap is not None else (raw_avail if raw_avail is not None else 100))
+        current_avail = int(raw_avail if raw_avail is not None else tot)
+
+        if current_avail <= 0:
+            return {
+                "success": False,
                 "shelter_id": int(row.shelter_id),
                 "shelter_name": row.shelter_name,
-                "address": f"{row.address_1}, {row.city}",
-                "spots_reserved": count,
                 "total_capacity": tot,
-                "available_capacity": avail,
-                "message": f"Successfully reserved {count} spot(s) at {row.shelter_name}."
+                "available_capacity": 0,
+                "requested_seats": count,
+                "error": f"Cannot reserve seats: {row.shelter_name} is already at full capacity (0 spots available)."
             }
+
+        if count > current_avail:
+            return {
+                "success": False,
+                "shelter_id": int(row.shelter_id),
+                "shelter_name": row.shelter_name,
+                "total_capacity": tot,
+                "available_capacity": current_avail,
+                "requested_seats": count,
+                "error": f"Cannot reserve {count} seat(s). Only {current_avail} spot(s) currently available at {row.shelter_name}."
+            }
+
+        # Atomically decrement capacity ONLY when available_capacity >= count
+        update_dml = f"""
+        UPDATE `{DATASET_TABLE}`
+        SET available_capacity = available_capacity - @count
+        WHERE shelter_id = @shelter_id AND available_capacity >= @count
+        """
+        update_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("shelter_id", "INT64", int(shelter_id)),
+                bigquery.ScalarQueryParameter("count", "FLOAT64", float(count)),
+            ]
+        )
+        update_job = bq_client.query(update_dml, job_config=update_config)
+        update_job.result()
+
+        if update_job.num_dml_affected_rows == 0:
+            return {
+                "success": False,
+                "shelter_id": int(row.shelter_id),
+                "shelter_name": row.shelter_name,
+                "available_capacity": current_avail,
+                "requested_seats": count,
+                "error": f"Reservation failed: available capacity at {row.shelter_name} was claimed concurrently."
+            }
+
+        new_avail = current_avail - count
+        return {
+            "success": True,
+            "shelter_id": int(row.shelter_id),
+            "shelter_name": row.shelter_name,
+            "address": f"{row.address_1}, {row.city}",
+            "spots_reserved": count,
+            "total_capacity": tot,
+            "available_capacity": new_avail,
+            "message": f"Successfully reserved {count} spot(s) at {row.shelter_name}."
+        }
     except Exception as e:
         logger.info("Direct BigQuery update skipped (%s); applying simulated reservation.", e)
 
-    # 3. Fallback confirmation
+    # 3. Fallback / simulated confirmation with capacity tracking
+    s_id = int(shelter_id) if str(shelter_id).isdigit() else 367358
+    sim_avail = _SIMULATED_CAPACITIES.get(s_id, 150)
+    if count > sim_avail:
+        return {
+            "success": False,
+            "shelter_id": s_id,
+            "shelter_name": f"Emergency Shelter #{s_id}",
+            "available_capacity": sim_avail,
+            "requested_seats": count,
+            "error": f"Cannot reserve {count} seat(s). Only {sim_avail} spot(s) available."
+        }
+    _SIMULATED_CAPACITIES[s_id] = sim_avail - count
     return {
         "success": True,
-        "shelter_id": int(shelter_id),
-        "shelter_name": f"Emergency Shelter #{shelter_id}",
+        "shelter_id": s_id,
+        "shelter_name": f"Emergency Shelter #{s_id}",
         "address": "Baton Rouge Emergency Operations Sector",
         "spots_reserved": count,
-        "total_capacity": 418,
-        "available_capacity": max(0, 414 - count),
-        "message": f"Successfully reserved {count} spot(s) at Emergency Shelter #{shelter_id}."
+        "total_capacity": 250,
+        "available_capacity": _SIMULATED_CAPACITIES[s_id],
+        "message": f"Successfully reserved {count} spot(s) at Emergency Shelter #{s_id}."
     }
 
 # ADK FunctionTool registrations

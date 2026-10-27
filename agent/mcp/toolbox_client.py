@@ -158,12 +158,40 @@ class MCPToolboxClient:
             return filtered[:limit]
 
         elif tool_name == "book_shelter_capacity":
-            shelter_id = str(args.get("shelter_id"))
+            shelter_id = str(args.get("shelter_id", ""))
             count = int(args.get("count", 1))
+
+            if count <= 0:
+                return {
+                    "success": False,
+                    "shelter_id": shelter_id,
+                    "error": "Party size must be at least 1."
+                }
+
+            if not hasattr(self, "_sim_capacities"):
+                self._sim_capacities = {
+                    "SHELTER-FL-4491": 180,
+                    "SHELTER-FL-4492": 450,
+                    "SHELTER-FL-3301": 950
+                }
+
+            avail = self._sim_capacities.get(shelter_id, 100)
+            if count > avail:
+                return {
+                    "success": False,
+                    "shelter_id": shelter_id,
+                    "available_capacity": avail,
+                    "requested_seats": count,
+                    "error": f"Cannot reserve {count} seats. Only {avail} spots available."
+                }
+
+            new_avail = avail - count
+            self._sim_capacities[shelter_id] = new_avail
             return {
                 "success": True,
                 "shelter_id": shelter_id,
                 "reserved_spots": count,
+                "available_capacity": new_avail,
                 "status": "CONFIRMED_VIA_MCP_TOOLBOX"
             }
 

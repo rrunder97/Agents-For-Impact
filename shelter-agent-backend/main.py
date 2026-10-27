@@ -44,7 +44,8 @@ def find_shelters(request):
         print(f"[BOOK_REQUEST] Reserving shelter_id={shelter_id}, party_size={party_size}")
         try:
             booking_res = book_shelter_capacity(shelter_id, party_size)
-            return (json.dumps(booking_res), 200, response_headers)
+            status_code = 200 if booking_res.get("success", False) else 400
+            return (json.dumps(booking_res), status_code, response_headers)
         except Exception as e:
             print(f"[BOOK_ERROR] Error booking shelter {shelter_id}: {str(e)}")
             return (json.dumps({"success": False, "error": str(e)}), 500, response_headers)

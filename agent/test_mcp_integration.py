@@ -62,6 +62,32 @@ class TestMCPIntegration(unittest.TestCase):
         self.assertTrue(booking.get("success"))
         self.assertEqual(booking.get("reserved_spots"), 2)
 
+    def test_toolbox_client_book_capacity_exceeds_available_rejected(self):
+        """Verifies that requesting more seats than available capacity is rejected."""
+        client = MCPToolboxClient()
+        booking = client.call_tool(
+            "book_shelter_capacity",
+            {"shelter_id": "SHELTER-FL-4491", "count": 5000}
+        )
+        self.assertFalse(booking.get("success"), "Booking exceeding capacity must fail")
+        self.assertIn("error", booking)
+        self.assertIn("Cannot reserve", booking["error"])
+
+    def test_toolbox_client_book_capacity_zero_or_negative_rejected(self):
+        """Verifies that non-positive party sizes are rejected."""
+        client = MCPToolboxClient()
+        booking_zero = client.call_tool(
+            "book_shelter_capacity",
+            {"shelter_id": "SHELTER-FL-4491", "count": 0}
+        )
+        self.assertFalse(booking_zero.get("success"))
+
+        booking_neg = client.call_tool(
+            "book_shelter_capacity",
+            {"shelter_id": "SHELTER-FL-4491", "count": -3}
+        )
+        self.assertFalse(booking_neg.get("success"))
+
     def test_toolbox_client_query_care_facilities(self):
         """Verifies healthcare facility query via MCP Toolbox."""
         client = MCPToolboxClient()

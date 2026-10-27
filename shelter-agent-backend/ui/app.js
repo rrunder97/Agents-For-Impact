@@ -399,6 +399,34 @@ async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
   const cardEl = document.getElementById(`card-${shelterId}`);
   const shelterName = customShelterName || cardEl?.querySelector(".shelter-name")?.textContent || `Shelter #${shelterId}`;
 
+  // Client-side validation: check available capacity to prevent overbooking
+  const availCountEl = document.getElementById(`avail-count-${shelterId}`);
+  let currentAvail = null;
+  if (availCountEl) {
+    const parsed = parseInt(availCountEl.textContent.replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(parsed)) currentAvail = parsed;
+  }
+
+  if (isNaN(partySize) || partySize <= 0) {
+    alert("Please enter a valid party size (at least 1 person).");
+    if (partyInput) partyInput.focus();
+    return;
+  }
+
+  if (currentAvail !== null && currentAvail <= 0) {
+    alert(`Sorry, ${shelterName} has reached full capacity (0 spots available). Please select another facility.`);
+    return;
+  }
+
+  if (currentAvail !== null && partySize > currentAvail) {
+    alert(`Cannot reserve ${partySize} seat(s). Only ${currentAvail} spot(s) are currently available at ${shelterName}. Please adjust your party size.`);
+    if (partyInput) {
+      partyInput.value = currentAvail;
+      partyInput.focus();
+    }
+    return;
+  }
+
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = `<span>⏳ Reserving in BigQuery...</span>`;
@@ -418,11 +446,23 @@ async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
     const result = await response.json();
 
     if (!response.ok || !result.success) {
-      throw new Error(result.error || "Failed to update capacity in BigQuery.");
+      const errorMsg = result.error || "Failed to update capacity in BigQuery.";
+      if (statusEl) {
+        statusEl.className = "error-banner";
+        statusEl.style.display = "block";
+        statusEl.style.padding = "0.75rem 1rem";
+        statusEl.style.marginTop = "0.75rem";
+        statusEl.style.borderRadius = "8px";
+        statusEl.style.background = "#fce8e6";
+        statusEl.style.color = "#c5221f";
+        statusEl.style.border = "1px solid #fad2cf";
+        statusEl.innerHTML = `<span>❌ <strong>Reservation Declined:</strong> ${escapeHtml(errorMsg)}</span>`;
+        statusEl.classList.remove("hidden");
+      }
+      throw new Error(errorMsg);
     }
 
     // Update real-time capacity counter on the card
-    const availCountEl = document.getElementById(`avail-count-${shelterId}`);
     const barFillEl = document.getElementById(`bar-fill-${shelterId}`);
     const badgeEl = document.getElementById(`badge-live-${shelterId}`);
 
@@ -453,6 +493,7 @@ async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
     // Show Confirmation Banner
     if (statusEl) {
       statusEl.className = "accepted-banner";
+      statusEl.style.display = "block";
       statusEl.innerHTML = `
         <span>🎉 <strong>Destination Accepted & Confirmed!</strong> Reserved ${partySize} spot(s) at ${escapeHtml(shelterName)}. Real-time capacity updated to <strong>${newAvail.toLocaleString()}</strong>.</span>
       `;
@@ -464,8 +505,21 @@ async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
     }
 
     if (btn) {
-      btn.innerHTML = `<span>✅ Confirmed (${partySize} Reserved)</span>`;
-      btn.style.background = "#137333";
+      if (newAvail <= 0) {
+        btn.innerHTML = `<span>🔒 Shelter Full (${partySize} Reserved)</span>`;
+        btn.style.background = "#5f6368";
+        btn.disabled = true;
+      } else {
+        btn.innerHTML = `<span>✅ Confirmed (${partySize} Reserved)</span>`;
+        btn.style.background = "#137333";
+      }
+    }
+
+    if (partyInput && newAvail <= 0) {
+      partyInput.disabled = true;
+      partyInput.max = "0";
+    } else if (partyInput) {
+      partyInput.max = String(newAvail);
     }
 
     // Scroll driving directions into clear focus
@@ -478,7 +532,7 @@ async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
     alert(`Could not complete reservation: ${err.message}`);
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `<span>✅ Accept & Reserve Spot(s)</span>`;
+      btn.innerHTML = `<span>✅ Accept &amp; Reserve Spot(s)</span>`;
     }
   }
 }
@@ -628,10 +682,10 @@ function renderResults(matches, originLabel, presetPartySize = 1) {
         <div class="selection-controls">
           <div class="party-size-wrap">
             <label for="party-${shelterId}">Party Size:</label>
-            <input type="number" id="party-${shelterId}" class="party-size-input" value="${presetPartySize}" min="1" max="${Math.max(1, availCap)}" />
+            <input type="number" id="party-${shelterId}" class="party-size-input" value="${availCap <= 0 ? 0 : Math.min(presetPartySize, availCap)}" min="1" max="${Math.max(1, availCap)}" ${availCap <= 0 ? "disabled" : ""} oninput="if(parseInt(this.value,10)>${availCap}){alert('Cannot reserve more than '+${availCap}+' available spot(s).');this.value=${availCap};}" />
           </div>
-          <button class="btn-accept-shelter" id="btn-reserve-${shelterId}" onclick="acceptShelter(${shelterId})">
-            ✅ Accept &amp; Reserve Spot(s)
+          <button class="btn-accept-shelter" id="btn-reserve-${shelterId}" onclick="acceptShelter(${shelterId})" ${availCap <= 0 ? 'disabled style="background: #5f6368; cursor: not-allowed; opacity: 0.7;"' : ""}>
+            ${availCap <= 0 ? "🔒 Shelter Full (0 Available)" : "✅ Accept &amp; Reserve Spot(s)"}
           </button>
         </div>
         <div class="reservation-status hidden" id="res-status-${shelterId}"></div>
