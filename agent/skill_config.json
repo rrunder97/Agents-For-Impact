@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "skill_id": "evac_readiness_grounding",
+  "name": "check_shelter_readiness",
+  "version": "1.0.0",
+  "description": "Validates physical shelter readiness by cross-referencing federal BigQuery records with live Google Maps signals to detect mismatches, closures, and transit last-mile failures.",
+  "runtime": "google-adk",
+  "model": "gemini-3.6-flash",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "county_fips": {
+        "type": "string",
+        "description": "The 5-digit FIPS code for the target area (e.g., '12086')."
+      },
+      "hazard_type": {
+        "type": "string",
+        "enum": ["hurricane", "flood"],
+        "description": "Filter by primary risk."
+      },
+      "min_vulnerability_score": {
+        "type": "number",
+        "description": "Threshold for no-vehicle or disabled population percentages (e.g., 0.20 for 20%).",
+        "default": 0.20
+      }
+    },
+    "required": ["county_fips", "hazard_type"]
+  },
+  "grounding_sources": [
+    {
+      "source_id": "bigquery_federal_records",
+      "type": "bigquery",
+      "target_view": "qwiklabs-gcp-03-82491e646971.evacuation_readiness.v_emergency_shelters_all",
+      "tables_joined": ["shelters", "vulnerability_tracts", "hazard_tracts"],
+      "filter_condition": "pct_no_vehicle > min_vulnerability_score AND is_medical = TRUE"
+    },
+    {
+      "source_id": "google_maps_grounding",
+      "type": "google_maps",
+      "grounding_types": ["places", "routing"],
+      "validation_rules": [
+        {
+          "condition": "business_status IN ['CLOSED_PERMANENTLY', 'CLOSED_TEMPORARILY', 'CONSTRUCTION']",
+          "action": "SET functional_status = FAIL",
+          "output_tag": "VULNERABILITY DETECTED"
+        },
+        {
+          "condition": "USER_CURRENT_DATETIME - last_crawled > 365 days",
+          "action": "APPEND [UNVERIFIED_STALE_DATA]"
+        },
+        {
+          "condition": "last_crawled < last_major_disaster_date",
+          "action": "SET grounding_priority = HIGH_UNCERTAINTY"
+        },
+        {
+          "condition": "pedestrian_walking_distance_minutes > 20",
+          "action": "FLAG LAST-MILE FAILURE"
+        },
+        {
+          "condition": "pedestrian_route INTERSECTS flood_risk_area",
+          "action": "FLAG ROUTE HAZARD INTERSECTION"
+        }
+      ]
+    }
+  ],
+  "execution_prompt": "When checking evacuation readiness, you must act as a 'Skeptic.' Do not trust the BigQuery is_functional = TRUE flag alone. Use the BigQuery Tool to find designated medical shelters in the user's requested FIPS. Immediately invoke the Google Maps Tool to 'ground' these locations. If you find a mismatch (e.g., BigQuery says it's a medical shelter but Maps shows it as a retail store or permanently closed), your response MUST start with 'VULNERABILITY DETECTED'. For every location, calculate the walking distance for a resident without a car. If walking distance > 20 minutes to the nearest functional shelter, flag this as a 'LAST-MILE FAILURE'.",
+  "actions": [
+    {
+      "name": "send_fips_alert",
+      "trigger": "grounding_priority == 'CRITICAL_FIX_REQUIRED'",
+      "description": "Sends the shelter name and specific reason for failure to the emergency manager email associated with that county.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "county_fips": { "type": "string" },
+          "county_name": { "type": "string" },
+          "emergency_manager_email": { "type": "string", "format": "email" },
+          "shelter_name": { "type": "string" },
+          "grounding_priority": { "type": "string", "enum": ["CRITICAL_FIX_REQUIRED", "HIGH_UNCERTAINTY", "ADVISORY"] },
+          "failure_reasons": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "suggested_redirect": { "type": "string" }
+        },
+        "required": ["county_fips", "shelter_name", "grounding_priority", "failure_reasons"]
+      }
+    }
+  ],
+  "test_case": {
+    "scenario_name": "The Medical Desert Scenario",
+    "target_area": {
+      "county_fips": "12086",
+      "county_name": "Miami-Dade County",
+      "tract_id": "12086001902"
+    },
+    "vulnerability_metric": {
+      "pct_no_vehicle": 0.284,
+      "threshold": 0.20
+    },
+    "candidate_shelter": {
+      "name": "Northside Community Medical Point",
+      "federal_record": {
+        "is_medical": true,
+        "is_functional": true,
+        "generator_onsite": true
+      },
+      "maps_grounding": {
+        "business_status": "CLOSED_PERMANENTLY",
+        "primary_type": "health_clinic",
+        "walking_duration_minutes": 27,
+        "crosses_flood_risk_area": true
+      }
+    },
+    "expected_agent_output": {
+      "tag": "[VULNERABILITY DETECTED]",
+      "shelter": "Northside Community Medical Point",
+      "issues": [
+        "Physical existence check failed via Google Maps. Building is permanently closed.",
+        "LAST-MILE FAILURE: Pedestrian duration 27 mins > 20 min threshold",
+        "ROUTE HAZARD INTERSECTION: Walking path traverses Little River Drainage Canal Basin"
+      ],
+      "population_at_risk": "~4,200 residents with no personal vehicle",
+      "action_required": "Redirect medical evacuation shuttles to East General Medical Center (3.1 miles south)",
+      "alert_dispatched": {
+        "action": "send_fips_alert",
+        "recipient": "eoc-ops@miamidade.gov",
+        "priority": "CRITICAL_FIX_REQUIRED"
+      }
+    }
+  }
+}
