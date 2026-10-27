@@ -7,24 +7,68 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- Header -->
   <header class="app-header">
     <div class="container header-container">
       <div class="brand">
-        <div class="brand-icon">🛡️</div>
+        <div class="brand-icon-wrap">
+          <span class="brand-icon">🛡️</span>
+        </div>
         <div>
           <h1>Emergency Shelter Finder</h1>
           <p class="subtitle">AI Agent Readiness & Spatial Routing • Powered by ADK Toolbox & BigQuery GIS</p>
         </div>
       </div>
       <div class="header-actions">
-        <!-- Theme Toggle Button (Light/Dark Mode) -->
-        <button type="button" class="btn btn-theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Switch Light/Dark Theme">
-          <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+        <!-- Multi-Theme Selector Dropdown (Midnight Dark, Warm Beige, Cool Slate Gray, Light) -->
+        <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
+          <button type="button" class="btn btn-theme-toggle" id="theme-toggle-btn" onclick="toggleThemeMenu(event)" title="Choose Visual Theme">
+            <span id="theme-swatch" class="theme-swatch-indicator"></span>
+            <span id="theme-icon">🌙</span>
+            <span id="theme-text">Midnight Dark</span>
+            <span class="theme-caret">▾</span>
+          </button>
+          <div class="theme-menu dropdown-hidden" id="theme-menu">
+            <div class="theme-menu-header">Select Visual Theme</div>
+            <button type="button" class="theme-option" onclick="selectTheme('dark')">
+              <span class="theme-option-preview preview-dark"></span>
+              <div class="theme-option-text">
+                <span class="theme-option-name">🌙 Midnight Dark</span>
+                <span class="theme-option-desc">Tactical EOC Contrast</span>
+              </div>
+            </button>
+            <button type="button" class="theme-option" onclick="selectTheme('beige')">
+              <span class="theme-option-preview preview-beige"></span>
+              <div class="theme-option-text">
+                <span class="theme-option-name">☀️ Warm Beige</span>
+                <span class="theme-option-desc">Soft Sand &amp; Editorial Linen</span>
+              </div>
+            </button>
+            <button type="button" class="theme-option" onclick="selectTheme('gray')">
+              <span class="theme-option-preview preview-gray"></span>
+              <div class="theme-option-text">
+                <span class="theme-option-name">🎨 Cool Slate Gray</span>
+                <span class="theme-option-desc">Architectural Studio Slate</span>
+              </div>
+            </button>
+            <button type="button" class="theme-option" onclick="selectTheme('light')">
+              <span class="theme-option-preview preview-light"></span>
+              <div class="theme-option-text">
+                <span class="theme-option-name">💡 Clean Light</span>
+                <span class="theme-option-desc">Standard Daylight</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Offline Evacuation Manifest Button (from NLB) -->
+        <button type="button" class="btn btn-manifest" onclick="downloadOfflineManifest()" title="Download printable offline evacuation manifest for grid-down blackouts">
+          📥 Offline Manifest (.txt)
         </button>
+
         <button type="button" class="btn btn-primary" onclick="toggleArchitectureModal(true)">
           🏗️ Architecture &amp; Workflow
         </button>
@@ -80,9 +124,17 @@
             <div class="collapsible-content" id="content-nl">
               <form id="nl-search-form" onsubmit="handleNLSearch(event)">
                 <div class="form-group">
-                  <label for="nl-input">Describe your evacuation situation &amp; special needs in plain language</label>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <label for="nl-input" style="margin-bottom: 0;">Describe your evacuation situation &amp; special needs in plain language</label>
+                    <button type="button" class="btn-voice" id="btn-voice-nl" onclick="toggleVoiceDictation('nl')" title="Hands-free Voice Dictation">
+                      <span id="voice-icon-nl">🎙️</span> <span id="voice-text-nl">Voice Dictate</span>
+                    </button>
+                  </div>
                   <div class="nl-input-container">
                     <textarea id="nl-input" rows="2" placeholder="e.g. I have a family of 4 with one person having wheelchair needs and hospital need"></textarea>
+                  </div>
+                  <div id="voice-banner-nl" class="voice-status-banner">
+                    <span>🎙️</span> <span>Listening... Speak your evacuation needs clearly into your microphone</span>
                   </div>
                   <div class="nl-chips-container">
                     <span class="chips-label">Quick Prompts:</span>
@@ -150,9 +202,17 @@
               <form id="standard-search-form" onsubmit="handleStandardSearch(event)">
                 <!-- Address Input -->
                 <div id="group-address" class="form-group">
-                  <label for="address-input">Street Address, City, or Postal Code</label>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <label for="address-input" style="margin-bottom: 0;">Street Address, City, or Postal Code</label>
+                    <button type="button" class="btn-voice" id="btn-voice-std" onclick="toggleVoiceDictation('standard')" title="Hands-free Voice Dictation">
+                      <span id="voice-icon-std">🎙️</span> <span id="voice-text-std">Voice Dictate</span>
+                    </button>
+                  </div>
                   <div class="input-with-button">
                     <input type="text" id="address-input" placeholder="e.g. Baton Rouge, LA" value="Baton Rouge, LA" autocomplete="street-address">
+                  </div>
+                  <div id="voice-banner-std" class="voice-status-banner">
+                    <span>🎙️</span> <span>Listening... Speak your address or city name into your microphone</span>
                   </div>
                   <span class="field-help">Google Maps Geocoding Tool will resolve your address to exact coordinates.</span>
                 </div>
