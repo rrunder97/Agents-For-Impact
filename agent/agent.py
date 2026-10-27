@@ -3,14 +3,15 @@ agent.py - Main Root Agent for Google ADK (Agent Development Kit).
 Implements the Sentinel Evacuation Readiness Agent for Challenge 4 (A4I 2026).
 
 Compatible with:
-- `adk web`
+- `adk web agent`
 - Google Cloud Agent Runtime / Vertex AI
 - Standalone Python execution & test harnesses
 """
 
 import os
+import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+from pathlib import Path
 
 # Google ADK imports
 try:
@@ -22,26 +23,29 @@ except ImportError:
     Agent = None
     google_maps_grounding = None
 
-from schemas import (
+from .config import DEFAULT_MODEL
+from .emergency_agent import emergency_agent
+from .maps_agent import maps_agent
+from .context_loader import load_agent_context
+
+# Sentinel services and schemas for standalone/direct audit tools
+from .schemas import (
     CheckShelterReadinessInput,
     HazardType,
     GroundingPriority,
     AuditReportItem,
     FederalShelterRecord
 )
-from bigquery_service import BigQueryGroundingService
-from maps_service import GoogleMapsGroundingService
-from alert_service import EmergencyInterventionService
-from bigquery_nl_query import BigQueryNLQueryEngine, TARGET_VIEW
+from .bigquery_service import BigQueryGroundingService
+from .maps_service import GoogleMapsGroundingService
+from .alert_service import EmergencyInterventionService
+from .bigquery_nl_query import BigQueryNLQueryEngine, TARGET_VIEW
 
+agent_context_doc = load_agent_context()
 
-# ==============================================================================
-# SKEPTIC SENTINEL SYSTEM INSTRUCTIONS
-# ==============================================================================
-MAIN_AGENT_INSTRUCTIONS = f"""
-You are the Sentinel Evacuation Readiness & Vulnerable Community Planning Agent.
-Your mission is to audit designated emergency shelters in Florida/target counties for an upcoming storm,
-focusing on transit-dependent and medically vulnerable populations who cannot easily evacuate.
+main_coordinator_instruction = f"""
+You are the Chief Emergency Evacuation & Vulnerable Population Readiness Coordinator and Sentinel Agent.
+Your mission is to audit designated emergency shelters and assist emergency managers and vulnerable citizens before and during extreme weather events, focusing on transit-dependent and medically vulnerable populations.
 
 Target Database View:
 {TARGET_VIEW}
@@ -62,23 +66,24 @@ Operating Protocol: The "Skeptic" Sentinel:
 5. HONEST REPORTING:
    - If accessibility data is blank in federal records, explicitly state that it is UNRECORDED (not "no").
    - Structure final briefs starting with `[VULNERABILITY DETECTED]` if failures exist.
+
+### COLLABORATION ARCHITECTURE:
+You have two specialized sub-agents:
+1. `emergency_agent`:
+   - Handles BigQuery data querying across shelters, care facilities, census tracts, and hazard tables.
+   - Computes distances, validates wheelchair/pet/medical capabilities, and enforces flood hazard exclusions.
+2. `maps_agent`:
+   - Resolves street addresses, neighborhood names, and zip codes to latitude and longitude coordinates.
+   - Verifies whether historical FEMA buildings still exist and operate on live Google Maps.
+   - Provides Google Maps navigation deep links.
+
+{agent_context_doc}
 """
 
-
-# ==============================================================================
-# CUSTOM ADK TOOLS (Python Function Tools)
-# ==============================================================================
 bq_engine = BigQueryNLQueryEngine(use_mock=True)
 maps_service = GoogleMapsGroundingService(use_mock=True)
 alert_service = EmergencyInterventionService()
 bq_discovery = BigQueryGroundingService(use_mock=True)
-
-
-def query_emergency_shelters(natural_language_query: str) -> Dict[str, Any]:
-    """Translates a natural language question into BigQuery Standard SQL and queries the emergency shelters view."""
-    sql = bq_engine.generate_sql(natural_language_query)
-    result = bq_engine.execute_query(sql)
-    return result
 
 
 def audit_shelter_ground_truth(
@@ -147,29 +152,26 @@ def send_fips_alert(
     return {"status": "DISPATCHED", "recipient": alert.emergency_manager_email, "alert_id": alert.shelter_name}
 
 
-# ==============================================================================
-# MAIN ADK AGENT DECLARATION
-# ==============================================================================
-tools_list = [
-    query_emergency_shelters,
+coordinator_tools = [
     audit_shelter_ground_truth,
-    send_fips_alert
+    send_fips_alert,
 ]
 
 if google_maps_grounding is not None:
-    # Add Google Maps Grounding as required by the challenge
-    tools_list.append(google_maps_grounding)
+    coordinator_tools.append(google_maps_grounding)
 
 if ADK_AVAILABLE and Agent is not None:
-    # Primary Google ADK Agent instance
     root_agent = Agent(
-        name="evac_readiness_sentinel",
-        description="Sentinel Evacuation Readiness & Vulnerable Community Planning Agent for Challenge 4.",
-        model="gemini-3.6-flash",
-        instruction=MAIN_AGENT_INSTRUCTIONS,
-        tools=tools_list
+        name="root_agent",
+        description="Chief Evacuation Readiness Coordinator orchestrating Emergency Data and Google Maps Grounding sub-agents.",
+        model=DEFAULT_MODEL,
+        instruction=main_coordinator_instruction,
+        tools=coordinator_tools,
+        sub_agents=[
+            emergency_agent,
+            maps_agent,
+        ]
     )
-    # Alias for adk web discovery
     agent = root_agent
 else:
     root_agent = None
@@ -178,7 +180,7 @@ else:
 
 def run_standalone_audit(county_fips: str = "12086") -> str:
     """Convenience runner for offline or standalone CLI execution."""
-    from sentinel_agent import SentinelEvacuationAgent
+    from .sentinel_agent import SentinelEvacuationAgent
     runner = SentinelEvacuationAgent(
         bigquery_service=bq_discovery,
         maps_service=maps_service,
