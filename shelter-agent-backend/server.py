@@ -22,7 +22,8 @@ class CloudRunHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         # Handle API calls at /, /find-shelters, /api/find-shelters, or /book-shelter
-        if self.path in ["/", "/find-shelters", "/api/find-shelters", "/book-shelter"]:
+        clean_path = self.path.split("?")[0]
+        if clean_path in ["/", "/find-shelters", "/api/find-shelters", "/book-shelter"]:
             content_length = int(self.headers.get("Content-Length", 0))
             post_data = self.rfile.read(content_length) if content_length > 0 else b"{}"
 
@@ -31,7 +32,7 @@ class CloudRunHandler(http.server.SimpleHTTPRequestHandler):
             except Exception:
                 json_data = {}
 
-            if self.path == "/book-shelter":
+            if clean_path == "/book-shelter":
                 json_data["action"] = "book"
 
             req = RequestAdapter(

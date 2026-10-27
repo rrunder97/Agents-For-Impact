@@ -1,0 +1,173 @@
+sources:
+  evacuation_db:
+    kind: bigquery
+    project: ${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}
+    location: US
+
+tools:
+  - name: search_shelters_spatial
+    kind: bigquery-sql
+    source: evacuation_db
+    description: "Search emergency shelters near a geographic coordinate using ST_DISTANCE and filter by life-safety criteria."
+    parameters:
+      - name: lat
+        type: number
+        description: "Latitude of origin coordinate"
+      - name: lon
+        type: number
+        description: "Longitude of origin coordinate"
+      - name: require_wheelchair
+        type: boolean
+        description: "Filter for wheelchair accessible facilities"
+      - name: require_medical
+        type: boolean
+        description: "Filter for medical support facilities"
+      - name: require_generator
+        type: boolean
+        description: "Filter for backup generator onsite"
+      - name: include_closed
+        type: boolean
+        description: "Include closed shelters"
+      - name: limit
+        type: integer
+        description: "Maximum number of shelters to return"
+    statement: |
+      SELECT 
+        shelter_id,
+        shelter_name, 
+        address_1, 
+        city,
+        latitude,
+        longitude,
+        shelter_status_code,
+        evacuation_capacity,
+        COALESCE(available_capacity, evacuation_capacity, 100.0) AS available_capacity,
+        wheelchair_accessible,
+        is_medical,
+        generator_onsite,
+        pet_accommodations_code,
+        in_100_yr_floodplain,
+        in_surge_slosh_area,
+        maps_url,
+        ROUND(ST_DISTANCE(ST_GEOGPOINT(longitude, latitude), ST_GEOGPOINT(@lon, @lat))) AS distance_meters
+      FROM `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.evacuation_readiness.v_emergency_shelters_all`
+      WHERE (@include_closed = TRUE OR LOWER(shelter_status_code) = 'open')
+        AND (@require_wheelchair = FALSE OR wheelchair_accessible = TRUE)
+        AND (@require_medical = FALSE OR is_medical = TRUE)
+        AND (@require_generator = FALSE OR generator_onsite = TRUE)
+        AND (COALESCE(in_100_yr_floodplain, FALSE) = FALSE AND COALESCE(in_surge_slosh_area, FALSE) = FALSE)
+      ORDER BY distance_meters ASC
+      LIMIT @limit
+
+  - name: book_shelter_capacity
+    kind: bigquery-sql
+    source: evacuation_db
+    description: "Atomically decrement available shelter capacity upon evacuee booking confirmation."
+    parameters:
+      - name: shelter_id
+        type: string
+        description: "Identifier of the shelter"
+      - name: count
+        type: integer
+        description: "Number of evacuee beds to reserve"
+    statement: |
+      UPDATE `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.evacuation_readiness.shelters`
+      SET available_capacity = GREATEST(0.0, COALESCE(available_capacity, evacuation_capacity) - @count)
+      WHERE CAST(shelter_id AS STRING) = @shelter_id
+
+  - name: query_care_facilities
+    kind: bigquery-sql
+    source: evacuation_db
+    description: "Query CMS certified care facilities and nursing homes by bed capacity."
+    parameters:
+      - name: min_beds
+        type: integer
+        description: "Minimum certified bed capacity"
+      - name: limit
+        type: integer
+        description: "Maximum records to return"
+    statement: |
+      SELECT 
+        ccn,
+        facility_name,
+        address,
+        city,
+        bed_capacity,
+        latitude,
+        longitude,
+        generator_status,
+        maps_url
+      FROM `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.evacuation_readiness.v_care_facilities_readiness`
+      WHERE bed_capacity >= @min_beds
+      ORDER BY bed_capacity DESC
+      LIMIT @limit
+
+  - name: query_vulnerability_tracts
+    kind: bigquery-sql
+    source: evacuation_db
+    description: "Query Census Social Vulnerability Index (SVI) metrics for a county FIPS code."
+    parameters:
+      - name: fips_pattern
+        type: string
+        description: "FIPS prefix pattern, e.g. '12086%'"
+    statement: |
+      SELECT 
+        COUNT(DISTINCT geo_id) AS total_tracts,
+        ROUND(AVG(BUILDVALUE) / 1000000, 2) AS avg_building_value_millions,
+        ROUND(AVG(HRCN_AFREQ), 3) AS avg_hurricane_frequency,
+        ROUND(AVG(CFLD_AFREQ), 3) AS avg_flood_frequency
+      FROM `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.evacuation_readiness.hazard_tracts`
+      WHERE CAST(geo_id AS STRING) LIKE @fips_pattern
+
+  - name: query_hazard_tracts
+    kind: bigquery-sql
+    source: evacuation_db
+    description: "Query coastal flood and hurricane exposure for tracts."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Limit of records"
+    statement: |
+      SELECT 
+        geo_id,
+        HRCN_RISKS,
+        HRCN_AFREQ,
+        CFLD_RISKS,
+        CFLD_AFREQ,
+        BUILDVALUE
+      FROM `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.evacuation_readiness.hazard_tracts`
+      ORDER BY BUILDVALUE DESC
+      LIMIT @limit
+
+  - name: query_candidate_medical_shelters
+    kind: bigquery-sql
+    source: evacuation_db
+    description: "Discover candidate medical shelters in high-vulnerability tracts for grounding."
+    parameters:
+      - name: county_fips
+        type: string
+        description: "County FIPS code (e.g. 12086)"
+      - name: min_vulnerability_score
+        type: number
+        description: "Minimum percentage of carless population"
+    statement: |
+      SELECT 
+        s.shelter_id,
+        s.shelter_name,
+        s.county_fips,
+        v.county_name,
+        v.tract_id,
+        s.latitude,
+        s.longitude,
+        s.is_medical,
+        s.is_functional,
+        s.generator_onsite,
+        v.pct_no_vehicle,
+        s.last_updated
+      FROM `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.fema_emergency_readiness.shelters` s
+      JOIN `${BIGQUERY_PROJECT:-qwiklabs-gcp-03-82491e646971}.census_socioeconomic.vulnerability_tracts` v 
+        ON s.county_fips = v.county_fips AND s.tract_id = v.tract_id
+      WHERE s.county_fips = @county_fips
+        AND v.pct_no_vehicle >= @min_vulnerability_score
+        AND s.is_medical = TRUE
+      ORDER BY v.pct_no_vehicle DESC

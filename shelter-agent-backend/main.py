@@ -55,7 +55,10 @@ def find_shelters(request):
     require_wheelchair = bool(request_json.get("wheelchair_accessible", False))
     require_medical = bool(request_json.get("is_medical", False))
     require_generator = bool(request_json.get("generator_onsite", False))
-    include_closed = bool(request_json.get("include_closed", False))
+    if "include_closed" in request_json:
+        include_closed = bool(request_json["include_closed"])
+    else:
+        include_closed = True # Default to True so queries match standby facilities in FEMA database
     limit = int(request_json.get("limit", 3))
 
     print(f"[SEARCH_REQUEST] address='{address}', lat={user_lat}, lon={user_lon}, include_closed={include_closed}, limit={limit}")
@@ -105,8 +108,10 @@ def find_shelters(request):
             dest_name_or_address=f"{row['shelter_name']}, {dest_addr}"
         )
 
-        total_cap = int(row.get("evacuation_capacity") or 0)
-        avail_cap = int(row.get("available_capacity") or 0)
+        raw_cap = row.get("evacuation_capacity")
+        raw_avail = row.get("available_capacity")
+        total_cap = int(raw_cap if raw_cap is not None else (raw_avail if raw_avail is not None else 100))
+        avail_cap = int(raw_avail if raw_avail is not None else total_cap)
 
         results.append({
             "shelter_id": row.get("shelter_id"),

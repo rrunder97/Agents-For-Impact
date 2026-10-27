@@ -97,11 +97,11 @@ async function handleSearch(event) {
   const latVal = document.getElementById("lat-input").value.trim();
   const lonVal = document.getElementById("lon-input").value.trim();
 
-  const reqWheelchair = document.getElementById("filter-wheelchair").checked;
-  const reqMedical = document.getElementById("filter-medical").checked;
-  const reqGenerator = document.getElementById("filter-generator").checked;
-  const includeClosed = document.getElementById("filter-closed").checked;
-  const limitVal = parseInt(document.getElementById("filter-limit").value, 10) || 3;
+  const reqWheelchair = Boolean((document.getElementById("req-wheelchair") || document.getElementById("filter-wheelchair"))?.checked);
+  const reqMedical = Boolean((document.getElementById("req-medical") || document.getElementById("filter-medical"))?.checked);
+  const reqGenerator = Boolean((document.getElementById("req-generator") || document.getElementById("filter-generator"))?.checked);
+  const includeClosed = Boolean((document.getElementById("include-closed") || document.getElementById("filter-closed"))?.checked ?? true);
+  const limitVal = parseInt((document.getElementById("limit-select") || document.getElementById("filter-limit"))?.value || "3", 10) || 3;
 
   const payload = {
     wheelchair_accessible: reqWheelchair,
@@ -164,12 +164,13 @@ async function handleSearch(event) {
 }
 
 // Accept and reserve a shelter in real-time
-async function acceptShelter(shelterId, shelterName, googleMapsUrl) {
+async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
   const partyInput = document.getElementById(`party-${shelterId}`);
   const partySize = parseInt(partyInput ? partyInput.value : "1", 10) || 1;
   const btn = document.getElementById(`btn-reserve-${shelterId}`);
   const statusEl = document.getElementById(`res-status-${shelterId}`);
   const cardEl = document.getElementById(`card-${shelterId}`);
+  const shelterName = customShelterName || cardEl?.querySelector(".shelter-name")?.textContent || `Shelter #${shelterId}`;
 
   if (btn) {
     btn.disabled = true;
@@ -402,7 +403,7 @@ function renderResults(matches, originLabel) {
             <label for="party-${shelterId}">Party Size:</label>
             <input type="number" id="party-${shelterId}" class="party-size-input" value="1" min="1" max="${Math.max(1, availCap)}" />
           </div>
-          <button class="btn-accept-shelter" id="btn-reserve-${shelterId}" onclick="acceptShelter(${shelterId}, '${escapeHtml(s.shelter_name).replace(/'/g, "\\'")}', '${s.google_maps_url}')">
+          <button class="btn-accept-shelter" id="btn-reserve-${shelterId}" onclick="acceptShelter(${shelterId})">
             ✅ Accept &amp; Reserve Spot(s)
           </button>
         </div>
