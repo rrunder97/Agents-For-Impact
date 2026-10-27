@@ -98,6 +98,31 @@ class BigQueryNLQueryEngine:
                 f"LIMIT {limit};"
             )
 
+        if "wheelchair" in q and ("medical" in q or "hospital" in q):
+            return (
+                f"SELECT \n"
+                f"    shelter_id, shelter_name, address_1, city, evacuation_capacity,\n"
+                f"    wheelchair_accessible, is_medical, generator_onsite, maps_url\n"
+                f"FROM {TARGET_VIEW}\n"
+                f"WHERE is_functional = TRUE\n"
+                f"  AND wheelchair_accessible = TRUE\n"
+                f"  AND is_medical = TRUE\n"
+                f"ORDER BY evacuation_capacity DESC\n"
+                f"LIMIT {limit};"
+            )
+
+        if "generator" in q and ("nearest" in q or "shelter" in q or "backup" in q):
+            return (
+                f"SELECT \n"
+                f"    shelter_id, shelter_name, address_1, city, evacuation_capacity,\n"
+                f"    wheelchair_accessible, is_medical, generator_onsite, maps_url\n"
+                f"FROM {TARGET_VIEW}\n"
+                f"WHERE is_functional = TRUE\n"
+                f"  AND generator_onsite = TRUE\n"
+                f"ORDER BY evacuation_capacity DESC\n"
+                f"LIMIT {limit};"
+            )
+
         if "medical" in q and ("generator" in q or "power" in q) and ("flood" in q or "surge" in q or "safe" in q):
             return (
                 f"SELECT \n"

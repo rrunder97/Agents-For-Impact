@@ -164,3 +164,31 @@ sequenceDiagram
 
 4. **External Intervention Dispatches:**
    * When a critical medical shelter fails ground truth verification, the system invokes `send_fips_alert` to notify the designated county Emergency Operations Center (EOC).
+
+---
+
+## 5. Natural Language Search & Semantic Constraint Grounding
+
+To democratize emergency shelter access during high-stress evacuation scenarios, the platform includes a **Natural Language Intent & Extraction Engine** (`toolbox/nl_parser.py` & `agent/bigquery_nl_query.py`):
+
+```mermaid
+flowchart LR
+    UserQuery["User Natural Language Query<br/>'I have a family of 4 with wheelchair needs and hospital need'"] --> NLParser["NL Intent Parser & Extractor<br/>(toolbox.parse_shelter_intent)"]
+    NLParser --> StructuredIntent["Structured Constraints<br/>• party_size = 4<br/>• wheelchair_accessible = True<br/>• is_medical = True<br/>• generator_onsite = False"]
+    StructuredIntent --> BQGIS["BigQuery Spatial Engine<br/>ST_DWITHIN & ST_DISTANCE"]
+    StructuredIntent --> UI["Frontend Reactive UI<br/>• Party size auto-set to 4<br/>• AI Understanding Badges"]
+```
+
+### Supported Natural Language Patterns & Grounding Rules:
+1. **Party & Family Sizing:**
+   * Natural language phrases like *"family of 4"*, *"party of 6"*, *"3 of us"*, or *"myself and 2 kids"* automatically extract `party_size`.
+   * The web UI pre-populates the reservation capacity counter to this extracted number for single-click reservation.
+2. **Mobility & ADA Accessibility:**
+   * Phrases mentioning *"wheelchair"*, *"handicap"*, *"ADA"*, *"ramp"*, or *"mobility"* activate `wheelchair_accessible = TRUE`.
+3. **Medical & Hospital Care:**
+   * Terms like *"hospital"*, *"medical"*, *"oxygen"*, *"dialysis"*, *"nurse"*, or *"doctor"* activate `is_medical = TRUE`.
+4. **Power & Generator Backup:**
+   * Terms like *"generator"*, *"backup power"*, *"electricity"*, *"ventilator"* activate `generator_onsite = TRUE`.
+5. **Geographic Grounding:**
+   * City names (*"New Orleans"*, *"Baton Rouge"*, *"Shreveport"*, *"Lafayette"*) are extracted to ground spatial searches when coordinates are omitted.
+

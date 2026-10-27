@@ -12,6 +12,7 @@ from .maps_tool import (
     maps_routing_tool,
     maps_directions_link_tool
 )
+from .nl_parser import parse_shelter_intent
 
 __all__ = [
     "search_shelters_spatial",
@@ -23,5 +24,7 @@ __all__ = [
     "build_google_maps_directions_link",
     "maps_geocode_tool",
     "maps_routing_tool",
-    "maps_directions_link_tool"
+    "maps_directions_link_tool",
+    "parse_shelter_intent"
 ]
+

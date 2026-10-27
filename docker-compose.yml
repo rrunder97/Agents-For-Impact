@@ -1,6 +1,21 @@
 version: "3.8"
 
 services:
+  mcp-toolbox:
+    build:
+      context: ./mcp-toolbox
+      dockerfile: Dockerfile
+    container_name: a4i-mcp-toolbox
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - BIGQUERY_PROJECT=${GOOGLE_CLOUD_PROJECT:-qwiklabs-gcp-03-82491e646971}
+    volumes:
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+      - ./mcp-toolbox/tools.yaml:/app/tools.yaml:ro
+    restart: unless-stopped
+
   agent:
     build:
       context: .
@@ -8,6 +23,8 @@ services:
     container_name: a4i-evacuation-agent
     ports:
       - "8080:8080"
+    depends_on:
+      - mcp-toolbox
     env_file:
       - .env
     environment:
@@ -19,9 +36,9 @@ services:
       - BIGQUERY_DATASET=${BIGQUERY_DATASET:-evacuation_readiness}
       - ADK_MODEL=${ADK_MODEL:-gemini-3.6-flash}
       - GOOGLE_GENAI_USE_VERTEXAI=True
+      - MCP_TOOLBOX_URL=http://mcp-toolbox:5000
+      - MAPS_MCP_URL=${MAPS_MCP_URL:-https://mapstools.googleapis.com/mcp}
     volumes:
-      # Mount local gcloud CLI authentication credentials so container can access BigQuery & Vertex AI
       - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
-      # Optional: Mount application code for live reloading during local development
       - ./agent:/app/agent
     restart: unless-stopped

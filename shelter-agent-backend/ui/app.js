@@ -7,24 +7,42 @@ const BOOK_SHELTER_URL = (window.location.origin && (window.location.origin.incl
   ? "/book-shelter"
   : "https://us-central1-qwiklabs-gcp-03-82491e646971.cloudfunctions.net/find-shelters";
 
-// Switch search tabs (Address vs Coordinates)
+// Switch search tabs (Address vs Coordinates vs Natural Language)
 function switchTab(mode) {
   const tabAddress = document.getElementById("tab-address");
   const tabCoords = document.getElementById("tab-coords");
+  const tabNl = document.getElementById("tab-nl");
   const groupAddress = document.getElementById("group-address");
   const groupCoords = document.getElementById("group-coords");
+  const groupNl = document.getElementById("group-nl");
+
+  tabAddress?.classList.remove("active");
+  tabCoords?.classList.remove("active");
+  tabNl?.classList.remove("active");
+  groupAddress?.classList.add("hidden");
+  groupCoords?.classList.add("hidden");
+  groupNl?.classList.add("hidden");
 
   if (mode === "address") {
-    tabAddress.classList.add("active");
-    tabCoords.classList.remove("active");
-    groupAddress.classList.remove("hidden");
-    groupCoords.classList.add("hidden");
-  } else {
-    tabCoords.classList.add("active");
-    tabAddress.classList.remove("active");
-    groupCoords.classList.remove("hidden");
-    groupAddress.classList.add("hidden");
+    tabAddress?.classList.add("active");
+    groupAddress?.classList.remove("hidden");
+  } else if (mode === "coords") {
+    tabCoords?.classList.add("active");
+    groupCoords?.classList.remove("hidden");
+  } else if (mode === "nl") {
+    tabNl?.classList.add("active");
+    groupNl?.classList.remove("hidden");
   }
+}
+
+// Quick fill example and submit
+function setNLExample(promptText) {
+  switchTab("nl");
+  const nlInput = document.getElementById("nl-input");
+  if (nlInput) {
+    nlInput.value = promptText;
+  }
+  handleSearch(new Event("submit"));
 }
 
 // Toggle Data Sources Information Modal
@@ -89,19 +107,25 @@ function getCurrentLocation() {
 
 // Submit search query
 async function handleSearch(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) {
+    event.preventDefault();
+  }
   clearError();
 
-  const isAddressMode = document.getElementById("tab-address").classList.contains("active");
-  const address = document.getElementById("address-input").value.trim();
-  const latVal = document.getElementById("lat-input").value.trim();
-  const lonVal = document.getElementById("lon-input").value.trim();
+  const isAddressMode = document.getElementById("tab-address")?.classList.contains("active");
+  const isCoordsMode = document.getElementById("tab-coords")?.classList.contains("active");
+  const isNlMode = document.getElementById("tab-nl")?.classList.contains("active");
 
-  const reqWheelchair = document.getElementById("filter-wheelchair").checked;
-  const reqMedical = document.getElementById("filter-medical").checked;
-  const reqGenerator = document.getElementById("filter-generator").checked;
-  const includeClosed = document.getElementById("filter-closed").checked;
-  const limitVal = parseInt(document.getElementById("filter-limit").value, 10) || 3;
+  const address = document.getElementById("address-input")?.value?.trim() || "";
+  const latVal = document.getElementById("lat-input")?.value?.trim() || "";
+  const lonVal = document.getElementById("lon-input")?.value?.trim() || "";
+  const nlQuery = document.getElementById("nl-input")?.value?.trim() || "";
+
+  const reqWheelchair = Boolean((document.getElementById("req-wheelchair") || document.getElementById("filter-wheelchair"))?.checked);
+  const reqMedical = Boolean((document.getElementById("req-medical") || document.getElementById("filter-medical"))?.checked);
+  const reqGenerator = Boolean((document.getElementById("req-generator") || document.getElementById("filter-generator"))?.checked);
+  const includeClosed = Boolean((document.getElementById("include-closed") || document.getElementById("filter-closed"))?.checked ?? true);
+  const limitVal = parseInt((document.getElementById("limit-select") || document.getElementById("filter-limit"))?.value || "3", 10) || 3;
 
   const payload = {
     wheelchair_accessible: reqWheelchair,
@@ -113,7 +137,17 @@ async function handleSearch(event) {
 
   let searchOriginLabel = "";
 
-  if (isAddressMode) {
+  if (isNlMode) {
+    if (!nlQuery) {
+      showError("Please enter your evacuation requirements in plain language.");
+      return;
+    }
+    payload.nl_query = nlQuery;
+    if (address) {
+      payload.address = address;
+    }
+    searchOriginLabel = `Natural Language: "${nlQuery.length > 50 ? nlQuery.substring(0, 47) + '...' : nlQuery}"`;
+  } else if (isAddressMode) {
     if (!address) {
       showError("Please enter a street address, city, or ZIP code.");
       return;
@@ -153,23 +187,51 @@ async function handleSearch(event) {
       throw new Error(data.error || `Server returned error status ${response.status}`);
     }
 
-    renderResults(data.matches || [], searchOriginLabel);
+    renderNLUnderstanding(data.nl_understanding);
+    renderResults(data.matches || [], searchOriginLabel, data.party_size || 1);
   } catch (err) {
     showError(`Failed to fetch shelters: ${err.message}`);
     document.getElementById("empty-state").classList.remove("hidden");
     document.getElementById("shelter-list").classList.add("hidden");
+    const banner = document.getElementById("nl-understanding-banner");
+    if (banner) banner.classList.add("hidden");
   } finally {
     setLoading(false);
   }
 }
 
+// Render AI Natural Language Understanding Banner
+function renderNLUnderstanding(nlUnderstanding) {
+  const banner = document.getElementById("nl-understanding-banner");
+  const summaryEl = document.getElementById("nl-parsed-summary");
+  const badgesEl = document.getElementById("nl-badges-list");
+  if (!banner || !summaryEl || !badgesEl) return;
+
+  if (!nlUnderstanding || !nlUnderstanding.badges || nlUnderstanding.badges.length === 0) {
+    banner.classList.add("hidden");
+    return;
+  }
+
+  summaryEl.textContent = nlUnderstanding.summary || "";
+  badgesEl.innerHTML = "";
+  (nlUnderstanding.badges || []).forEach(badgeText => {
+    const badgeSpan = document.createElement("span");
+    badgeSpan.className = "nl-badge-item";
+    badgeSpan.textContent = badgeText;
+    badgesEl.appendChild(badgeSpan);
+  });
+
+  banner.classList.remove("hidden");
+}
+
 // Accept and reserve a shelter in real-time
-async function acceptShelter(shelterId, shelterName, googleMapsUrl) {
+async function acceptShelter(shelterId, customShelterName, googleMapsUrl) {
   const partyInput = document.getElementById(`party-${shelterId}`);
   const partySize = parseInt(partyInput ? partyInput.value : "1", 10) || 1;
   const btn = document.getElementById(`btn-reserve-${shelterId}`);
   const statusEl = document.getElementById(`res-status-${shelterId}`);
   const cardEl = document.getElementById(`card-${shelterId}`);
+  const shelterName = customShelterName || cardEl?.querySelector(".shelter-name")?.textContent || `Shelter #${shelterId}`;
 
   if (btn) {
     btn.disabled = true;
@@ -256,7 +318,7 @@ async function acceptShelter(shelterId, shelterName, googleMapsUrl) {
 }
 
 // Render shelter cards with Real-Time Capacity & Driving Directions
-function renderResults(matches, originLabel) {
+function renderResults(matches, originLabel, presetPartySize = 1) {
   const listEl = document.getElementById("shelter-list");
   const emptyEl = document.getElementById("empty-state");
   const countBadge = document.getElementById("results-count");
@@ -400,9 +462,9 @@ function renderResults(matches, originLabel) {
         <div class="selection-controls">
           <div class="party-size-wrap">
             <label for="party-${shelterId}">Party Size:</label>
-            <input type="number" id="party-${shelterId}" class="party-size-input" value="1" min="1" max="${Math.max(1, availCap)}" />
+            <input type="number" id="party-${shelterId}" class="party-size-input" value="${presetPartySize}" min="1" max="${Math.max(1, availCap)}" />
           </div>
-          <button class="btn-accept-shelter" id="btn-reserve-${shelterId}" onclick="acceptShelter(${shelterId}, '${escapeHtml(s.shelter_name).replace(/'/g, "\\'")}', '${s.google_maps_url}')">
+          <button class="btn-accept-shelter" id="btn-reserve-${shelterId}" onclick="acceptShelter(${shelterId})">
             ✅ Accept &amp; Reserve Spot(s)
           </button>
         </div>

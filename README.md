@@ -2,6 +2,58 @@
 
 **Agents for Impact 2026**
 
+
+---
+
+## 🏛️ Executive Summary for Judges: Agents for Impact 2026
+> 📘 **Full Design & Evaluation Report**: For detailed technical specifications, test matrices, and schema definitions, see the complete [EXECUTIVE_SUMMARY.md](EXECUTIVE_SUMMARY.md).
+
+### Real-World Impact
+This application resolves the critical gap in emergency response where conventional evacuation models quietly assume everyone owns a private vehicle, has full physical mobility, and has access to electricity:
+- **Unmasks "Phantom Shelters" & Medical Deserts**: Federal databases frequently record facilities as operational (`is_functional = True`) when they have permanently closed, moved, or lacked generators. The system automatically cross-references records against Google Maps ground-truth.
+- **Pedestrian Last-Mile Transit Equity**: Replaces idealized straight-line distance calculations with actual walking route computations. If walking time for transit-dependent tracts exceeds 20 minutes or traverses floodplains/canals, it flags a **Last-Mile Failure**.
+- **Automated Emergency Interventions**: Dispatches structured alerts directly to county Emergency Operations Centers (EOC) with concrete rerouting recommendations.
+- **Honest Accounting of Unrecorded Data**: Explicitly distinguishes between unrecorded accessibility fields and negative confirmations, upholding strict data integrity.
+
+### System Architecture
+```mermaid
+graph TB
+    subgraph Multi-Agent Orchestration
+        Root[Chief Sentinel Coordinator]
+        Skeptic[Skeptic Sentinel Grounding Protocol]
+        DomainAgents[Citizen, Medical, Govt, First Responder Sub-Agents]
+    end
+    subgraph MCP Integration Layer
+        TC[MCPToolboxClient: BigQuery]
+        MC[MapsGroundingMCPClient: Google Maps]
+        MCP_Box[MCP Toolbox for Databases: port 5000 /tools.yaml]
+        Maps_MCP[Google Maps Grounding Lite MCP: mapstools.googleapis.com/mcp]
+    end
+    subgraph Data & Cloud Services
+        BQ[(BigQuery: Shelters, Vulnerability Tracts, Hazard Tracts, Care Facilities)]
+        Maps_API[(Google Maps Platform: Places, Routes, Weather)]
+        EOC_Alerts[Emergency Operations Center Dispatch: send_fips_alert]
+    end
+
+    Root --> Skeptic
+    Root --> DomainAgents
+    Skeptic --> TC & MC
+    DomainAgents --> TC & MC
+    TC --> MCP_Box --> BQ
+    MC --> Maps_MCP --> Maps_API
+    Skeptic -->|Critical Vulnerability Detected| EOC_Alerts
+```
+
+### Tools, MCP Toolbox & Data Sources Used
+- **Google MCP Toolbox for Databases** (`googleapis/mcp-toolbox`): Defined in `mcp-toolbox/tools.yaml` and deployed via `Dockerfile` and `docker-compose.yml`. Executes parameterized BigQuery tools: `search_shelters_spatial`, `book_shelter_capacity`, `query_candidate_medical_shelters`, `query_care_facilities`, `query_vulnerability_tracts`, and `query_hazard_tracts`.
+- **Google Maps Grounding Lite MCP** (`mapstools.googleapis.com/mcp`): Delivers real-time place status (`search_places`), multimodal routing (`compute_routes` for `DRIVE` and `WALK`), and weather metrics (`lookup_weather`) with strict `translate="no"` attribution compliance.
+- **Data Sources**:
+  - `fema_emergency_readiness.shelters` (1,326+ shelters, capacity, ADA, generators)
+  - `census_socioeconomic.vulnerability_tracts` (Census tract carless %, SVI, demographics)
+  - `hazard_modeling.hazard_tracts` (FEMA NRI hurricane & flood frequencies, building exposure)
+  - `care_facilities_readiness` (CMS-certified nursing home bed capacities)
+  - Live Google Places & Google Routes APIs for runtime physical validation.
+
 ---
 
 ## Why this one matters
