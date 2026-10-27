@@ -8,14 +8,15 @@ from .tools.maps_tools import (
 
 logger = logging.getLogger(__name__)
 
-# Attempt to include built-in Google Maps Grounding tool
-maps_tools = [geocode_address, verify_shelter_on_google_maps]
+# On Gemini 2.5, Google Maps Grounding must not be mixed with custom function tools
+# The dedicated maps_agent hosts google_maps_grounding exclusively.
 try:
     from google.adk.tools import google_maps_grounding
-    maps_tools.append(google_maps_grounding)
-    logger.info("Loaded ADK google_maps_grounding tool successfully.")
+    maps_tools = [google_maps_grounding]
+    logger.info("Configured maps_agent with google_maps_grounding.")
 except Exception as e:
-    logger.warning("Could not load google_maps_grounding: %s. Using standard geocoding tools.", e)
+    logger.warning("Could not load google_maps_grounding: %s. Falling back to geocoding functions.", e)
+    maps_tools = [geocode_address, verify_shelter_on_google_maps]
 
 maps_instruction = """
 You are the Maps & Geospatial Grounding Agent.

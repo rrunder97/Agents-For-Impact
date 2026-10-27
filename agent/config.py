@@ -13,8 +13,8 @@ TABLE_HAZARD_TRACTS = f"{PROJECT_ID}.{DATASET_ID}.hazard_tracts"
 TABLE_VULNERABILITY_MEDICAL = f"{PROJECT_ID}.{DATASET_ID}.vulnerability_tract_medical_shelters"
 TABLE_MEDICAL_SHELTERS = f"{PROJECT_ID}.{DATASET_ID}.medical_shelters_available"
 
-# Gemini Model Selection (3.x line recommended by Challenge 4 architecture)
-DEFAULT_MODEL = os.getenv("ADK_MODEL", "gemini-3.6-flash")
+# Gemini Model Selection (gemini-2.5-flash is active in Vertex AI for this project)
+DEFAULT_MODEL = os.getenv("ADK_MODEL", "gemini-2.5-flash")
 
 # Google Maps Grounding & MCP Endpoint
 MAPS_MCP_URL = os.getenv("MAPS_MCP_URL", "https://mapstools.googleapis.com/mcp")

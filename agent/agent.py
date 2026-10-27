@@ -152,13 +152,14 @@ def send_fips_alert(
     return {"status": "DISPATCHED", "recipient": alert.emergency_manager_email, "alert_id": alert.shelter_name}
 
 
+from .tools.maps_tools import geocode_address, verify_shelter_on_google_maps
+
 coordinator_tools = [
     audit_shelter_ground_truth,
     send_fips_alert,
+    geocode_address,
+    verify_shelter_on_google_maps,
 ]
-
-if google_maps_grounding is not None:
-    coordinator_tools.append(google_maps_grounding)
 
 if ADK_AVAILABLE and Agent is not None:
     root_agent = Agent(
