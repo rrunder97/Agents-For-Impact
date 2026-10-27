@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: a4i-evacuation-agent
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - PYTHONUNBUFFERED=1
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-qwiklabs-gcp-03-82491e646971}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - BIGQUERY_DATASET=${BIGQUERY_DATASET:-evacuation_readiness}
+      - ADK_MODEL=${ADK_MODEL:-gemini-3.6-flash}
+      - GOOGLE_GENAI_USE_VERTEXAI=True
+    volumes:
+      # Mount local gcloud CLI authentication credentials so container can access BigQuery & Vertex AI
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+      # Optional: Mount application code for live reloading during local development
+      - ./agent:/app/agent
+    restart: unless-stopped
