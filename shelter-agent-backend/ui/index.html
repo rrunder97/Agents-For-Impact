@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergency Shelter Finder | Evacuation Readiness & Routing</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="container header-container">
+      <div class="brand">
+        <div class="brand-icon">🛡️</div>
+        <div>
+          <h1>Emergency Shelter Finder</h1>
+          <p class="subtitle">AI Agent Readiness & Spatial Routing • Powered by ADK Toolbox & BigQuery GIS</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-outline" onclick="toggleDataSourcesModal(true)">
+          📚 View Data Sources (7)
+        </button>
+        <div class="status-badge" id="system-status">
+          <span class="status-dot"></span> System Online
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <div class="content-grid">
+      <!-- Search & Controls Panel -->
+      <section class="card search-card">
+        <div class="card-title-row">
+          <h2 class="section-title">📍 Search Shelters & Get Driving Directions</h2>
+          <span class="badge badge-tech">ADK Toolbox</span>
+        </div>
+        
+        <!-- Input Method Tabs -->
+        <div class="tabs">
+          <button class="tab active" id="tab-address" onclick="switchTab('address')">Search by Address</button>
+          <button class="tab" id="tab-coords" onclick="switchTab('coords')">Search by Coordinates</button>
+        </div>
+
+        <form id="shelter-search-form" onsubmit="handleSearch(event)">
+          <!-- Address Input -->
+          <div id="group-address" class="form-group">
+            <label for="address-input">Street Address, City, or Postal Code</label>
+            <div class="input-with-button">
+              <input type="text" id="address-input" placeholder="e.g. Baton Rouge, LA" value="Baton Rouge, LA" autocomplete="street-address">
+            </div>
+            <span class="field-help">Google Maps Geocoding Tool will resolve your address to exact coordinates.</span>
+          </div>
+
+          <!-- Coordinates Input -->
+          <div id="group-coords" class="form-group hidden">
+            <div class="coords-row">
+              <div class="field-half">
+                <label for="lat-input">Latitude</label>
+                <input type="number" step="any" id="lat-input" placeholder="e.g. 30.4515">
+              </div>
+              <div class="field-half">
+                <label for="lon-input">Longitude</label>
+                <input type="number" step="any" id="lon-input" placeholder="e.g. -91.1871">
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary mt-2" onclick="getCurrentLocation()">
+              📍 Use My Current Location (GPS)
+            </button>
+          </div>
+
+          <!-- Special Needs & Filter Checkboxes -->
+          <div class="form-group">
+            <label class="group-label">Special Needs & Amenities Required</label>
+            <div class="checkbox-grid">
+              <label class="checkbox-card">
+                <input type="checkbox" id="req-wheelchair">
+                <span class="checkbox-custom"></span>
+                <span class="checkbox-label">♿ Wheelchair Accessible</span>
+              </label>
+              <label class="checkbox-card">
+                <input type="checkbox" id="req-medical">
+                <span class="checkbox-custom"></span>
+                <span class="checkbox-label">🏥 Medical Needs Ready</span>
+              </label>
+              <label class="checkbox-card">
+                <input type="checkbox" id="req-generator">
+                <span class="checkbox-custom"></span>
+                <span class="checkbox-label">⚡ Backup Generator Onsite</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Simulation / Preview Toggle -->
+          <div class="form-group simulation-group">
+            <label class="checkbox-card highlight-box">
+              <input type="checkbox" id="include-closed" checked>
+              <span class="checkbox-custom"></span>
+              <span class="checkbox-label">
+                <strong>Include Inactive / Standby Shelters (Preview Mode)</strong><br>
+                <small style="color: #666;">Database notice: All 1,326 FEMA NSS records currently hold status 'CLOSED' until active emergency declaration.</small>
+              </span>
+            </label>
+          </div>
+
+          <!-- Result Limit -->
+          <div class="form-group limit-group">
+            <label for="limit-select">Max Results</label>
+            <select id="limit-select">
+              <option value="3" selected>Top 3 nearest</option>
+              <option value="5">Top 5 nearest</option>
+              <option value="10">Top 10 nearest</option>
+            </select>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary btn-block" id="search-btn">
+            🔍 Search Shelters & Calculate Routes
+          </button>
+        </form>
+      </section>
+
+      <!-- Useful Tips Sidebar -->
+      <aside class="card tips-card">
+        <h2 class="section-title">💡 Useful Search Tips</h2>
+        <ul class="tips-list">
+          <li class="tip-item">
+            <div class="tip-icon">🗺️</div>
+            <div>
+              <strong>Accurate Address Geocoding:</strong>
+              <p>Enter a specific street address or city/state (e.g., <code>Baton Rouge, LA</code> or <code>Lafayette, LA</code>). The Maps Toolbox accurately anchors your GPS origin.</p>
+            </div>
+          </li>
+          <li class="tip-item">
+            <div class="tip-icon">🚗</div>
+            <div>
+              <strong>Turn-by-Turn Driving Directions:</strong>
+              <p>Every shelter found includes an instant Google Maps turn-by-turn driving link with live estimated travel time and distance.</p>
+            </div>
+          </li>
+          <li class="tip-item">
+            <div class="tip-icon">⚡</div>
+            <div>
+              <strong>Electricity-Dependent Medical Equipment:</strong>
+              <p>Filter by <strong>Backup Generator</strong> if evacuees rely on powered medical equipment (ventilators, dialysis, CPAP, refrigerated insulin).</p>
+            </div>
+          </li>
+          <li class="tip-item">
+            <div class="tip-icon">🐾</div>
+            <div>
+              <strong>Pet Accommodations:</strong>
+              <p>Check the pet tag on each result. Facilities operate under varying Red Cross and FEMA pet intake guidelines.</p>
+            </div>
+          </li>
+          <li class="tip-item">
+            <div class="tip-icon">📚</div>
+            <div>
+              <strong>Authoritative Federal Data:</strong>
+              <p>Data originates from 7 official federal agencies (FEMA NSS, HHS emPOWER, Census ACS, CDC SVI, etc.) preprocessed into BigQuery GIS.</p>
+            </div>
+          </li>
+        </ul>
+      </aside>
+    </div>
+
+    <!-- Results Section -->
+    <section class="results-section" id="results-container">
+      <div class="results-header">
+        <div>
+          <h2 class="section-title">📋 Shelters Found & Route Guidance</h2>
+          <p class="section-subtitle">Real-time driving times and directions provided via Google Maps Platform Toolbox</p>
+        </div>
+        <span id="results-count" class="badge">Awaiting search</span>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-spinner" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p>Invoking ADK BigQuery GIS Tool & calculating Google Maps Driving Routes...</p>
+      </div>
+
+      <!-- Error State -->
+      <div id="error-message" class="alert alert-error hidden"></div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">🏠</div>
+        <h3>No search performed yet</h3>
+        <p>Enter an address or coordinates above to find shelters and generate turn-by-turn driving directions.</p>
+      </div>
+
+      <!-- Results List -->
+      <div id="shelter-list" class="shelter-grid hidden"></div>
+    </section>
+
+    <!-- Authoritative Data Sources Section -->
+    <section class="card datasources-section" id="datasources-overview">
+      <div class="ds-section-header">
+        <div>
+          <h2 class="section-title">📚 Official Government & Federal Data Sources (7)</h2>
+          <p class="section-subtitle">All primary data sources are publicly available, official government datasets actively maintained by federal institutions.</p>
+        </div>
+      </div>
+
+      <div class="datasources-grid">
+        <!-- 1. FEMA NSS -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">1</span>
+            <div>
+              <h3 class="ds-title">FEMA National Shelter System (NSS)</h3>
+              <span class="ds-agency">FEMA & American Red Cross</span>
+            </div>
+          </div>
+          <p class="ds-desc">Standing national inventory of registered emergency evacuation shelters, capacity metrics, and operational flags (wheelchair access, generators, pets).</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">ArcGIS Feature Service (gis.fema.gov)</span>
+          </div>
+        </article>
+
+        <!-- 2. HHS emPOWER -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">2</span>
+            <div>
+              <h3 class="ds-title">HHS emPOWER Program</h3>
+              <span class="ds-agency">U.S. Dept of Health & Human Services (ASPR / CMS)</span>
+            </div>
+          </div>
+          <p class="ds-desc">Monthly datasets tracking Medicare beneficiaries who rely on electricity-dependent life-maintaining medical equipment (ventilators, dialysis, oxygen).</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">Privacy Protected (counts 1–10 masked as "11")</span>
+          </div>
+        </article>
+
+        <!-- 3. Census ACS -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">3</span>
+            <div>
+              <h3 class="ds-title">American Community Survey (ACS)</h3>
+              <span class="ds-agency">U.S. Census Bureau</span>
+            </div>
+          </div>
+          <p class="ds-desc">Demographic characteristics, total households, zero-vehicle households, and housing infrastructure metrics at the census tract level.</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">Google Cloud Public Datasets (bigquery-public-data.census_bureau_acs)</span>
+          </div>
+        </article>
+
+        <!-- 4. CDC SVI -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">4</span>
+            <div>
+              <h3 class="ds-title">CDC Social Vulnerability Index (SVI)</h3>
+              <span class="ds-agency">Centers for Disease Control and Prevention (CDC / ATSDR)</span>
+            </div>
+          </div>
+          <p class="ds-desc">Tract-level percentile rankings assessing socioeconomic vulnerability, household composition, minority status, and housing/transportation barriers.</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">ArcGIS REST Endpoints (Updated biennially)</span>
+          </div>
+        </article>
+
+        <!-- 5. CDC PLACES -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">5</span>
+            <div>
+              <h3 class="ds-title">CDC PLACES (Local Data for Health)</h3>
+              <span class="ds-agency">CDC in partnership with CDC Foundation</span>
+            </div>
+          </div>
+          <p class="ds-desc">Model-based small-area health estimates (walking difficulties, independent living capabilities, cognitive disability) at census tract resolution.</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">Open Data API (data.cdc.gov)</span>
+          </div>
+        </article>
+
+        <!-- 6. FEMA NRI -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">6</span>
+            <div>
+              <h3 class="ds-title">FEMA National Risk Index (NRI)</h3>
+              <span class="ds-agency">Federal Emergency Management Agency (FEMA)</span>
+            </div>
+          </div>
+          <p class="ds-desc">Baseline natural hazard risk measurements, annualized loss estimates, and exposure metrics for hurricanes, coastal flooding, and severe weather.</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">ArcGIS Services (FEMA Open Data)</span>
+          </div>
+        </article>
+
+        <!-- 7. CMS Provider Data -->
+        <article class="ds-card">
+          <div class="ds-header">
+            <span class="ds-num">7</span>
+            <div>
+              <h3 class="ds-title">CMS Provider Data (Nursing Homes)</h3>
+              <span class="ds-agency">Centers for Medicare & Medicaid Services (CMS)</span>
+            </div>
+          </div>
+          <p class="ds-desc">Monthly registry of certified skilled nursing and long-term care facilities, including licensed bed capacities and verified geographic coordinates.</p>
+          <div class="ds-meta">
+            <span class="tag tag-public">Public & Maintained</span>
+            <span class="ds-source">Open Data (data.cms.gov)</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- Preprocessing & Quality Assurance Callout -->
+      <div class="ds-callout">
+        <div class="callout-icon">⚙️</div>
+        <div>
+          <h4>Engineering Preprocessing & Data Quality Notice</h4>
+          <p>While these sources are publicly maintained by federal agencies, they require careful pipeline preprocessing before ingestion into BigQuery. Government datasets contain known irregularities—such as inverted coordinate axes in certain regional records, blank-space string padding in place of true nulls, or omitted state reporting variables (e.g., Texas/Florida omitting LACKTRPT). Automated ETL scripts normalize, validate, and convert spatial geometries into BigQuery Geography prior to real-time spatial indexing.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Data Sources Modal -->
+  <div id="ds-modal" class="modal-backdrop hidden" onclick="toggleDataSourcesModal(false)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📚 Complete Data Source Reference & Provenance</h3>
+        <button class="modal-close" onclick="toggleDataSourcesModal(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">All datasets powering this evacuation readiness portal are authoritative, publicly maintained federal assets:</p>
+        <ol class="modal-ds-list">
+          <li><strong>FEMA National Shelter System (NSS):</strong> Maintained jointly by FEMA and the American Red Cross via <code>gis.fema.gov</code>.</li>
+          <li><strong>HHS emPOWER (County & ZIP):</strong> Managed by ASPR and CMS. Governed by strict privacy suppression (counts 1–10 masked as "11").</li>
+          <li><strong>U.S. Census Bureau ACS:</strong> Tract demographics natively stored in Google Cloud Public Datasets (<code>bigquery-public-data.census_bureau_acs</code>).</li>
+          <li><strong>CDC Social Vulnerability Index (SVI):</strong> Tract-level hazard resilience rankings by CDC/ATSDR.</li>
+          <li><strong>CDC PLACES:</strong> Small-area health estimates developed by CDC with the CDC Foundation (<code>data.cdc.gov</code>).</li>
+          <li><strong>FEMA National Risk Index (NRI):</strong> Quantitative multi-hazard annual loss and exposure index.</li>
+          <li><strong>CMS Provider Registry:</strong> Certified skilled nursing and health facility data on <code>data.cms.gov</code>.</li>
+        </ol>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="toggleDataSourcesModal(false)">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Highlighted Data Sources & Legal Copyright Footer -->
+  <footer class="app-footer">
+    <div class="container footer-content">
+      <!-- Data Sources Highlighted in Footer -->
+      <div class="footer-sources-highlight">
+        <span class="footer-label">🏛️ Authoritative Data Sources Referenced:</span>
+        <div class="footer-source-badges">
+          <span class="source-badge">FEMA NSS</span>
+          <span class="source-badge">HHS emPOWER</span>
+          <span class="source-badge">U.S. Census ACS</span>
+          <span class="source-badge">CDC SVI</span>
+          <span class="source-badge">CDC PLACES</span>
+          <span class="source-badge">FEMA NRI</span>
+          <span class="source-badge">CMS Nursing Homes</span>
+        </div>
+      </div>
+
+      <div class="footer-divider"></div>
+
+      <!-- Legal & Copyright Notice -->
+      <div class="legal-notice">
+        <div class="legal-section">
+          <h4>Public Domain Notice & Federal Data Attribution</h4>
+          <p>
+            Pursuant to <strong>17 U.S.C. § 105</strong>, works created by officers and employees of the United States Federal Government (including FEMA, HHS, U.S. Census Bureau, CDC, and CMS) are not eligible for domestic copyright protection and reside in the <strong>Public Domain</strong>. 
+          </p>
+        </div>
+
+        <div class="legal-section">
+          <h4>Institutional Partnership & Proprietary Data Disclaimers</h4>
+          <p>
+            • <strong>American Red Cross:</strong> Co-developer and co-maintainer of the National Shelter System (NSS). Registered trademarks remain property of the American Red Cross.<br>
+            • <strong>CDC Foundation:</strong> Operational partner for the CDC PLACES local health data initiative.<br>
+            • <strong>HHS emPOWER Privacy Notice:</strong> In strict compliance with HIPAA and federal privacy regulations, electricity-dependent beneficiary counts between 1 and 10 are intentionally masked and suppressed.<br>
+            • <strong>Google Maps Platform™:</strong> Routing, geocoding, and distance matrix services are provided pursuant to the Google Maps Platform Terms of Service. © 2026 Google LLC. All rights reserved.<br>
+            • <strong>Evacuation Readiness Platform:</strong> Preprocessed datasets, spatial indices, and ADK agent tools are engineered for disaster planning and decision support.
+          </p>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 Emergency Shelter Readiness Initiative • Public Domain Data Integration & Google Cloud BigQuery Spatial Intelligence</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
