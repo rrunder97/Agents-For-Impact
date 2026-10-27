@@ -1052,3 +1052,483 @@ select:focus {
   border: 2px solid #188038 !important;
   box-shadow: 0 4px 16px rgba(24, 128, 56, 0.18) !important;
 }
+
+/* ==========================================================================
+   Architecture Banner & CTA
+   ========================================================================== */
+.architecture-banner {
+  background: linear-gradient(135deg, #0d233a 0%, #1a365d 60%, #1a73e8 100%);
+  color: #ffffff;
+  border-radius: var(--radius);
+  padding: 1.25rem 1.75rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  box-shadow: 0 4px 14px rgba(13, 35, 58, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.arch-banner-info {
+  flex: 1;
+  min-width: 280px;
+}
+
+.arch-banner-tag {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fbbc04;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 0.4rem;
+}
+
+.arch-banner-info h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: #ffffff;
+}
+
+.arch-banner-info p {
+  font-size: 0.85rem;
+  color: #e8eaed;
+  line-height: 1.4;
+}
+
+.btn-arch-cta {
+  background: #ffffff;
+  color: #0d233a;
+  font-weight: 700;
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-arch-cta:hover {
+  background: #f1f3f4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================================
+   HTML Architecture Diagram Modal
+   ========================================================================== */
+.modal-arch-content {
+  max-width: 960px !important;
+  width: 95vw !important;
+  max-height: 90vh !important;
+}
+
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.arch-lead {
+  font-size: 0.95rem;
+  color: var(--text-main);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  background: #f8f9fa;
+  padding: 0.85rem 1.15rem;
+  border-left: 4px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.arch-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.arch-tier {
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.tier-client {
+  border-color: #c2e7ff;
+  background: linear-gradient(to right, #f4f8fd, #ffffff);
+}
+
+.tier-server {
+  border-color: #feefc3;
+  background: linear-gradient(to right, #fefbf2, #ffffff);
+}
+
+.tier-adk {
+  border-color: #ceead6;
+  background: linear-gradient(to right, #f2f9f4, #ffffff);
+}
+
+.tier-cloud {
+  border-color: #dadce0;
+  background: linear-gradient(to right, #f8f9fa, #ffffff);
+}
+
+.tier-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.tier-header h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.tier-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #0d233a;
+  color: #ffffff;
+}
+
+.tier-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.arch-node {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.arch-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+}
+
+.highlight-node {
+  border: 1.5px solid #1a73e8;
+  background: #fcfdff;
+}
+
+.node-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.node-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.node-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.node-tag {
+  margin-top: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1a73e8;
+  background: #e8f0fe;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.arch-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.flow-line {
+  height: 2px;
+  background: #dadce0;
+  flex: 1;
+}
+
+.flow-badge {
+  background: #e8f0fe;
+  border: 1px solid #c2e7ff;
+  color: #1a73e8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.flow-arrow {
+  font-size: 0.95rem;
+  color: #1a73e8;
+}
+
+/* Hackathon Judges Criteria Box */
+.arch-judges-box {
+  background: #f8f9fa;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.arch-judges-box h4 {
+  font-size: 0.98rem;
+  color: var(--navy);
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.judges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.85rem;
+}
+
+.judge-item {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.judge-item strong {
+  display: block;
+  color: #1a73e8;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   Per-Result ADK Workflow Execution Trace (For Hackathon Judges)
+   ========================================================================== */
+.workflow-trace-container {
+  margin-top: 1.15rem;
+  background: #fdfdfd;
+  border: 1px solid #d2e3fc;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(26, 115, 232, 0.06);
+}
+
+.workflow-trace-header {
+  background: #f1f6fd;
+  padding: 0.7rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid #e1ecfc;
+  transition: background 0.15s ease;
+}
+
+.workflow-trace-header:hover {
+  background: #e8f0fe;
+}
+
+.trace-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: #174ea6;
+}
+
+.trace-icon {
+  font-size: 1.05rem;
+}
+
+.trace-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #1a73e8;
+  color: #ffffff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-left: 0.3rem;
+}
+
+.trace-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #1a73e8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workflow-trace-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.workflow-trace-body.hidden {
+  display: none;
+}
+
+.trace-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.trace-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: 11px;
+  width: 2px;
+  height: calc(100% + 0.85rem - 18px);
+  background: #d2e3fc;
+  z-index: 1;
+}
+
+.trace-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.trace-step-content {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #e8eaed;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.trace-step-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.badge-tool {
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #e8f0fe;
+  color: #185abc;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid #c2e7ff;
+}
+
+.badge-service {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+}
+
+.maps-service {
+  background: #fce8e6;
+  color: #c5221f;
+  border: 1px solid #fad2cf;
+}
+
+.bq-service {
+  background: #e6f4ea;
+  color: #137333;
+  border: 1px solid #ceead6;
+}
+
+.nav-service {
+  background: #fef7e0;
+  color: #b06000;
+  border: 1px solid #feefc3;
+}
+
+.trace-step-desc {
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+}
+
+.trace-step-desc code {
+  background: #f1f3f4;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: #202124;
+}
+
+.trace-code {
+  background: #202124;
+  color: #e8eaed;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 0.74rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  line-height: 1.35;
+  margin: 0.35rem 0;
+}
+
+.trace-pill-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.trace-pill {
+  background: #f1f3f4;
+  border: 1px solid #dadce0;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  color: #3c4043;
+}
