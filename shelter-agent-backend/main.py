@@ -12,7 +12,8 @@ from toolbox import (
     book_shelter_capacity,
     geocode_address,
     calculate_driving_routes,
-    build_google_maps_directions_link
+    build_google_maps_directions_link,
+    parse_shelter_intent
 )
 
 CORS_HEADERS = {
@@ -48,20 +49,47 @@ def find_shelters(request):
             print(f"[BOOK_ERROR] Error booking shelter {shelter_id}: {str(e)}")
             return (json.dumps({"success": False, "error": str(e)}), 500, response_headers)
 
-    # Action 2: Spatial Search & Route Calculations
+    # Action 2: Natural Language Intent Parsing & Extraction
+    nl_query = request_json.get("nl_query") or request_json.get("query")
+    nl_intent = None
+    party_size = int(request_json.get("party_size", 1))
+
+    if nl_query:
+        nl_intent = parse_shelter_intent(nl_query)
+        print(f"[NL_QUERY_PARSED] '{nl_query}' -> {nl_intent['summary']}")
+        party_size = nl_intent["party_size"]
+
+    # Action 3: Spatial Search & Route Calculations
     user_lat = request_json.get("latitude")
     user_lon = request_json.get("longitude")
     address = request_json.get("address")
-    require_wheelchair = bool(request_json.get("wheelchair_accessible", False))
-    require_medical = bool(request_json.get("is_medical", False))
-    require_generator = bool(request_json.get("generator_onsite", False))
+
+    # If location detected from natural language query and no explicit address passed
+    if not address and nl_intent and nl_intent.get("detected_location"):
+        address = nl_intent["detected_location"]
+
+    # Natural Language criteria defaults (with fallback to request_json explicit values)
+    if nl_intent:
+        require_wheelchair = bool(request_json.get("wheelchair_accessible", nl_intent["wheelchair_accessible"]))
+        require_medical = bool(request_json.get("is_medical", nl_intent["is_medical"]))
+        require_generator = bool(request_json.get("generator_onsite", nl_intent["generator_onsite"]))
+        limit = int(request_json.get("limit", nl_intent["limit"]))
+    else:
+        require_wheelchair = bool(request_json.get("wheelchair_accessible", False))
+        require_medical = bool(request_json.get("is_medical", False))
+        require_generator = bool(request_json.get("generator_onsite", False))
+        limit = int(request_json.get("limit", 3))
+
     if "include_closed" in request_json:
         include_closed = bool(request_json["include_closed"])
     else:
         include_closed = True # Default to True so queries match standby facilities in FEMA database
-    limit = int(request_json.get("limit", 3))
 
-    print(f"[SEARCH_REQUEST] address='{address}', lat={user_lat}, lon={user_lon}, include_closed={include_closed}, limit={limit}")
+    # If neither coordinates nor address provided in NL mode, fallback to default region
+    if user_lat is None and user_lon is None and not address:
+        address = "Baton Rouge, LA"
+
+    print(f"[SEARCH_REQUEST] address='{address}', lat={user_lat}, lon={user_lon}, wheelchair={require_wheelchair}, medical={require_medical}, generator={require_generator}, include_closed={include_closed}, limit={limit}")
 
     # Step 1: Use ADK Maps Tool for Geocoding if needed
     if (user_lat is None or user_lon is None) and address:
@@ -137,4 +165,12 @@ def find_shelters(request):
         })
 
     print(f"[SEARCH_RESPONSE] Returning {len(results)} matches")
-    return (json.dumps({"matches": results}), 200, response_headers)
+    response_payload = {
+        "matches": results,
+        "count": len(results),
+        "party_size": party_size
+    }
+    if nl_intent:
+        response_payload["nl_understanding"] = nl_intent
+
+    return (json.dumps(response_payload), 200, response_headers)

@@ -60,6 +60,7 @@
         <div class="tabs">
           <button class="tab active" id="tab-address" onclick="switchTab('address')">Search by Address</button>
           <button class="tab" id="tab-coords" onclick="switchTab('coords')">Search by Coordinates</button>
+          <button class="tab" id="tab-nl" onclick="switchTab('nl')">💬 Natural Language Search</button>
         </div>
 
         <form id="shelter-search-form" onsubmit="handleSearch(event)">
@@ -87,6 +88,27 @@
             <button type="button" class="btn btn-secondary mt-2" onclick="getCurrentLocation()">
               📍 Use My Current Location (GPS)
             </button>
+          </div>
+
+          <!-- Natural Language Input -->
+          <div id="group-nl" class="form-group hidden">
+            <label for="nl-input">Describe your evacuation requirements in natural language</label>
+            <div class="nl-input-container">
+              <textarea id="nl-input" rows="2" placeholder="e.g. I have a family of 4 with one person having wheelchair needs and hospital need"></textarea>
+            </div>
+            <div class="nl-chips-container">
+              <span class="chips-label">Quick Prompts:</span>
+              <button type="button" class="btn-chip" onclick="setNLExample('I have a family of 4 with one person having wheelchair needs and hospital need')">
+                👨‍👩‍👧‍👦 Family of 4 + Wheelchair + Hospital
+              </button>
+              <button type="button" class="btn-chip" onclick="setNLExample('Need a nearest shelter with generator')">
+                ⚡ Nearest shelter with generator
+              </button>
+              <button type="button" class="btn-chip" onclick="setNLExample('Need wheelchair accessible medical shelter in New Orleans for 3 people')">
+                🏥 Medical + Wheelchair (New Orleans)
+              </button>
+            </div>
+            <span class="field-help">Our Natural Language Agent parses family size, accessibility needs, generators, and locations automatically.</span>
           </div>
 
           <!-- Special Needs & Filter Checkboxes -->
@@ -207,6 +229,15 @@
         <div class="empty-icon">🏠</div>
         <h3>No search performed yet</h3>
         <p>Enter an address or coordinates above to find shelters and generate turn-by-turn driving directions.</p>
+      </div>
+
+      <!-- Natural Language Query Understanding Card -->
+      <div id="nl-understanding-banner" class="nl-card-understanding hidden">
+        <div class="nl-card-header">
+          <span class="nl-badge-robot">🤖 AI Query Understanding</span>
+          <span id="nl-parsed-summary" class="nl-parsed-summary"></span>
+        </div>
+        <div id="nl-badges-list" class="nl-badges-container"></div>
       </div>
 
       <!-- Results List -->
@@ -463,6 +494,12 @@
                 <div class="node-title">book_shelter_capacity</div>
                 <div class="node-desc">Executes atomic BigQuery DML to decrement available spots upon evacuee selection</div>
                 <div class="node-tag">ADK FunctionTool</div>
+              </div>
+              <div class="arch-node highlight-node">
+                <div class="node-icon">💬</div>
+                <div class="node-title">parse_shelter_intent</div>
+                <div class="node-desc">Extracts party size, wheelchair accessibility, medical readiness, and generator needs from natural language</div>
+                <div class="node-tag">ADK NL Intent Tool</div>
               </div>
               <div class="arch-node highlight-node">
                 <div class="node-icon">🧭</div>
