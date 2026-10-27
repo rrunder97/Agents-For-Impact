@@ -21,6 +21,10 @@
         </div>
       </div>
       <div class="header-actions">
+        <!-- Theme Toggle Button (Light/Dark Mode) -->
+        <button type="button" class="btn btn-theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Switch Light/Dark Theme">
+          <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+        </button>
         <button type="button" class="btn btn-primary" onclick="toggleArchitectureModal(true)">
           🏗️ Architecture &amp; Workflow
         </button>
@@ -56,11 +60,11 @@
           <span class="badge badge-tech">ADK Toolbox</span>
         </div>
         
-        <!-- Collapsible Search Modes Accordion -->
+        <!-- Collapsible Search Modes Accordion (Both collapsed by default) -->
         <div class="search-accordion" id="search-accordion">
 
-          <!-- 1. Collapsible Natural Language Search Feature -->
-          <div class="collapsible-card active" id="collapse-nl">
+          <!-- 1. Collapsible Natural Language Search Feature (Collapsed by default) -->
+          <div class="collapsible-card" id="collapse-nl">
             <div class="collapsible-header" onclick="toggleSearchSection('nl')">
               <div class="collapsible-title-wrap">
                 <span class="collapsible-icon">💬</span>
@@ -68,7 +72,7 @@
                 <span class="collapsible-badge">AI Assistant</span>
               </div>
               <div class="collapsible-actions">
-                <span class="collapsible-subtext">Free-form evacuation query</span>
+                <span class="collapsible-subtext">Click to expand • AI Evacuation Search</span>
                 <span class="collapsible-indicator">▼</span>
               </div>
             </div>
@@ -118,7 +122,7 @@
             </div>
           </div>
 
-          <!-- 2. Collapsible Standard Search Feature (Clubbed Address & Coordinates + Manual Filters) -->
+          <!-- 2. Collapsible Standard Search Feature (Collapsed by default) -->
           <div class="collapsible-card" id="collapse-standard">
             <div class="collapsible-header" onclick="toggleSearchSection('standard')">
               <div class="collapsible-title-wrap">
@@ -127,7 +131,7 @@
                 <span class="collapsible-badge">Address &amp; GPS</span>
               </div>
               <div class="collapsible-actions">
-                <span class="collapsible-subtext">Manual filters &amp; exact coords</span>
+                <span class="collapsible-subtext">Click to expand • Address &amp; GPS</span>
                 <span class="collapsible-indicator">▼</span>
               </div>
             </div>

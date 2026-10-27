@@ -7,18 +7,70 @@ const BOOK_SHELTER_URL = (window.location.origin && (window.location.origin.incl
   ? "/book-shelter"
   : "https://us-central1-qwiklabs-gcp-03-82491e646971.cloudfunctions.net/find-shelters";
 
-// Collapsible Search Accordion Toggles
+// Theme Management (Light / Dark mode)
+function initTheme() {
+  let savedTheme = null;
+  try {
+    savedTheme = localStorage.getItem("shelter_theme");
+  } catch (e) {}
+
+  if (savedTheme) {
+    setTheme(savedTheme);
+  } else {
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setTheme(prefersDark ? "dark" : "light");
+  }
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  try {
+    localStorage.setItem("shelter_theme", theme);
+  } catch (e) {}
+
+  const themeIcon = document.getElementById("theme-icon");
+  const themeText = document.getElementById("theme-text");
+  const themeBtn = document.getElementById("theme-toggle-btn");
+
+  if (theme === "dark") {
+    if (themeIcon) themeIcon.textContent = "☀️";
+    if (themeText) themeText.textContent = "Light Mode";
+    if (themeBtn) themeBtn.setAttribute("title", "Switch to Light Mode");
+  } else {
+    if (themeIcon) themeIcon.textContent = "🌙";
+    if (themeText) themeText.textContent = "Dark Mode";
+    if (themeBtn) themeBtn.setAttribute("title", "Switch to Dark Mode");
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  const newTheme = current === "dark" ? "light" : "dark";
+  setTheme(newTheme);
+}
+
+// Collapsible Search Accordion Toggles (Both collapsible by default)
 function toggleSearchSection(sectionName) {
   const nlCard = document.getElementById("collapse-nl");
   const standardCard = document.getElementById("collapse-standard");
   if (!nlCard || !standardCard) return;
 
   if (sectionName === "nl") {
-    nlCard.classList.add("active");
-    standardCard.classList.remove("active");
+    const isCurrentlyActive = nlCard.classList.contains("active");
+    if (isCurrentlyActive) {
+      nlCard.classList.remove("active");
+    } else {
+      nlCard.classList.add("active");
+      standardCard.classList.remove("active");
+    }
   } else if (sectionName === "standard") {
-    standardCard.classList.add("active");
-    nlCard.classList.remove("active");
+    const isCurrentlyActive = standardCard.classList.contains("active");
+    if (isCurrentlyActive) {
+      standardCard.classList.remove("active");
+    } else {
+      standardCard.classList.add("active");
+      nlCard.classList.remove("active");
+    }
   }
   clearError();
 }
@@ -46,17 +98,25 @@ function switchStandardSubmode(submode) {
 
 // Backward-compatible switchTab proxy
 function switchTab(mode) {
+  const nlCard = document.getElementById("collapse-nl");
+  const standardCard = document.getElementById("collapse-standard");
   if (mode === "nl") {
-    toggleSearchSection("nl");
+    nlCard?.classList.add("active");
+    standardCard?.classList.remove("active");
   } else {
-    toggleSearchSection("standard");
+    standardCard?.classList.add("active");
+    nlCard?.classList.remove("active");
     switchStandardSubmode(mode === "coords" ? "coords" : "address");
   }
 }
 
 // Quick fill Natural Language example and auto-submit
 function setNLExample(promptText) {
-  toggleSearchSection("nl");
+  const nlCard = document.getElementById("collapse-nl");
+  const standardCard = document.getElementById("collapse-standard");
+  nlCard?.classList.add("active");
+  standardCard?.classList.remove("active");
+
   const nlInput = document.getElementById("nl-input");
   if (nlInput) {
     nlInput.value = promptText;
@@ -739,4 +799,11 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// Initialize theme on page load
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initTheme);
+} else {
+  initTheme();
 }
