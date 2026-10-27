@@ -21,14 +21,16 @@ graph TD
         U4["Individual Citizens<br/>(Evacuees, Families, Special Needs)"]:::userLayer
     end
 
-    subgraph IntakeRouter ["2. Master Intake & Router (host_agent / root_agent)"]
+    subgraph IntakeRouter ["2. Main Agent & Router (emergency_agent / root_agent)"]
         H1["Heuristic Persona Classifier"]:::routerLayer
         H2["1-Step Disambiguation Selector"]:::routerLayer
         H3["UserProfileState Session Builder<br/>(Role, Urgency, FIPS/Loc, CCN)"]:::routerLayer
         H4["ADK Agent-to-Agent (A2A) Dispatcher"]:::routerLayer
+        H5["Direct BigQuery Engine<br/>(Shelters, Care Facilities, Hazards)"]:::routerLayer
         H1 --> H3
         H2 --> H3
         H3 --> H4
+        H3 --> H5
     end
 
     subgraph DomainAgents ["3. Specialized Domain Sub-Agents"]
@@ -36,7 +38,6 @@ graph TD
         A2["public_govt_agent<br/>SVI & Macro Allocations"]:::agentLayer
         A3["medical_agent<br/>CMS Bed Capacity & Triage"]:::agentLayer
         A4["citizen_agent<br/>Shelters & Life Safety"]:::agentLayer
-        A5["emergency_agent<br/>BigQuery Analytics"]:::agentLayer
         A6["maps_agent<br/>Live Maps Grounding"]:::agentLayer
     end
 
@@ -69,14 +70,13 @@ graph TD
     H4 -->|PUBLIC_GOVERNMENT| A2
     H4 -->|MEDICAL_PERSONNEL| A3
     H4 -->|INDIVIDUAL_CITIZEN| A4
-    H4 -->|Data Deep Dive| A5
     H4 -->|Geospatial Grounding| A6
+    H5 --> T5
 
     A1 --> T1
     A2 --> T2
     A3 --> T3
     A4 --> T4
-    A5 --> T5
     A6 --> T6
 
     T1 --> BQ1
@@ -100,7 +100,7 @@ graph TD
 sequenceDiagram
     autonumber
     actor User as User / Field Operator
-    participant Root as root_agent (Intake Router)
+    participant Root as emergency_agent (Main Coordinator)
     participant Profile as UserProfileState
     participant SubAgent as Domain Subagent (e.g. medical_agent)
     participant Tools as Tool Execution Layer

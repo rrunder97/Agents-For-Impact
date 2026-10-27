@@ -1,6 +1,5 @@
-from .agent import root_agent
+from .agent import emergency_agent, root_agent
 from .host_agent import host_agent
-from .emergency_agent import emergency_agent
 from .maps_agent import maps_agent
 from .sub_agents import (
     first_responder_agent,
@@ -10,9 +9,9 @@ from .sub_agents import (
 )
 
 __all__ = [
+    "emergency_agent",
     "root_agent",
     "host_agent",
-    "emergency_agent",
     "maps_agent",
     "first_responder_agent",
     "public_govt_agent",

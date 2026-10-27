@@ -22,11 +22,17 @@ except ImportError:
     ADK_AVAILABLE = False
     Agent = None
     google_maps_grounding = None
-
 from .config import DEFAULT_MODEL
-from .emergency_agent import emergency_agent
 from .maps_agent import maps_agent
 from .context_loader import load_agent_context
+from .tools.bigquery_tools import (
+    query_emergency_shelters,
+    query_care_facilities,
+    query_hazard_tracts,
+    query_vulnerability_medical_shelters,
+    query_medical_shelters_available,
+    execute_custom_bigquery,
+)
 
 # Sentinel services and schemas for standalone/direct audit tools
 from .schemas import (
@@ -46,13 +52,14 @@ from .host_agent import host_instruction
 agent_context_doc = load_agent_context()
 
 main_coordinator_instruction = f"""
-{host_instruction}
+================================================================================
+MAIN AGENT: EMERGENCY RESPONSE & EVACUATION COORDINATOR (emergency_agent)
+================================================================================
+You are the Emergency Response & Evacuation Coordinator (emergency_agent), the Master Agent for disaster evacuation planning, emergency shelter readiness, and vulnerable population protection.
 
-================================================================================
-CHIEF SENTINEL AUDIT & EMERGENCY COORDINATOR PROTOCOL
-================================================================================
-You are also the Chief Emergency Evacuation & Vulnerable Population Readiness Coordinator and Sentinel Agent.
-Your mission is to audit designated emergency shelters and assist emergency managers and vulnerable citizens before and during extreme weather events, focusing on transit-dependent and medically vulnerable populations.
+Your mission is to directly analyze BigQuery emergency data, assess hazard risks, audit shelter availability, and orchestrate specialized domain sub-agents.
+
+{host_instruction}
 
 Target Database View:
 {TARGET_VIEW}
@@ -74,14 +81,13 @@ Operating Protocol: The "Skeptic" Sentinel:
    - If accessibility data is blank in federal records, explicitly state that it is UNRECORDED (not "no").
    - Structure final briefs starting with `[VULNERABILITY DETECTED]` if failures exist.
 
-### COLLABORATION ARCHITECTURE & SUB-AGENTS:
+### SPECIALIZED SUB-AGENTS UNDER YOUR COORDINATION:
 You can delegate to or collaborate with specialized domain sub-agents based on the user's operational persona:
 1. `first_responder_agent`: Tactical field coordination, hazard overlays, and staging coordinates for Fire, Police, EMS, and Search & Rescue.
 2. `public_govt_agent`: Civil infrastructure, county FIPS vulnerability, SVI metrics, and macro resource/generator allocation for emergency managers.
 3. `medical_agent`: Healthcare logistics, CMS certified bed capacity (CCN), and medical-grade shelter triage for hospitals and care facilities.
 4. `citizen_agent`: Individual citizen and evacuee guidance, open shelter discovery, flood avoidance, and Google Maps direct links.
-5. `emergency_agent`: Direct BigQuery data queries across shelter registries, hazard tracts, and vulnerability models.
-6. `maps_agent`: Dedicated Google Maps geospatial grounding, address geocoding, and verification.
+5. `maps_agent`: Dedicated Google Maps geospatial grounding, address geocoding, and verification.
 
 {agent_context_doc}
 """
@@ -167,7 +173,15 @@ from .sub_agents import (
     citizen_agent
 )
 
-coordinator_tools = [
+emergency_tools = [
+    # Direct BigQuery Data Tools
+    query_emergency_shelters,
+    query_care_facilities,
+    query_hazard_tracts,
+    query_vulnerability_medical_shelters,
+    query_medical_shelters_available,
+    execute_custom_bigquery,
+    # Sentinel Grounding & Alerting Tools
     audit_shelter_ground_truth,
     send_fips_alert,
     geocode_address,
@@ -176,23 +190,24 @@ coordinator_tools = [
 ]
 
 if ADK_AVAILABLE and Agent is not None:
-    root_agent = Agent(
-        name="root_agent",
-        description="Master Coordinator and Router managing persona onboarding, tactical response, public government, medical logistics, and citizen evacuation.",
+    emergency_agent = Agent(
+        name="emergency_agent",
+        description="Main Emergency Response & Evacuation Coordinator analyzing BigQuery emergency data and orchestrating specialized sub-agents.",
         model=DEFAULT_MODEL,
         instruction=main_coordinator_instruction,
-        tools=coordinator_tools,
+        tools=emergency_tools,
         sub_agents=[
             first_responder_agent,
             public_govt_agent,
             medical_agent,
             citizen_agent,
-            emergency_agent,
             maps_agent,
         ]
     )
-    agent = root_agent
+    root_agent = emergency_agent
+    agent = emergency_agent
 else:
+    emergency_agent = None
     root_agent = None
     agent = None
 
