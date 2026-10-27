@@ -56,110 +56,173 @@
           <span class="badge badge-tech">ADK Toolbox</span>
         </div>
         
-        <!-- Input Method Tabs -->
-        <div class="tabs">
-          <button class="tab active" id="tab-address" onclick="switchTab('address')">Search by Address</button>
-          <button class="tab" id="tab-coords" onclick="switchTab('coords')">Search by Coordinates</button>
-          <button class="tab" id="tab-nl" onclick="switchTab('nl')">💬 Natural Language Search</button>
+        <!-- Collapsible Search Modes Accordion -->
+        <div class="search-accordion" id="search-accordion">
+
+          <!-- 1. Collapsible Natural Language Search Feature -->
+          <div class="collapsible-card active" id="collapse-nl">
+            <div class="collapsible-header" onclick="toggleSearchSection('nl')">
+              <div class="collapsible-title-wrap">
+                <span class="collapsible-icon">💬</span>
+                <span class="collapsible-title">Natural Language Search</span>
+                <span class="collapsible-badge">AI Assistant</span>
+              </div>
+              <div class="collapsible-actions">
+                <span class="collapsible-subtext">Free-form evacuation query</span>
+                <span class="collapsible-indicator">▼</span>
+              </div>
+            </div>
+
+            <div class="collapsible-content" id="content-nl">
+              <form id="nl-search-form" onsubmit="handleNLSearch(event)">
+                <div class="form-group">
+                  <label for="nl-input">Describe your evacuation situation &amp; special needs in plain language</label>
+                  <div class="nl-input-container">
+                    <textarea id="nl-input" rows="2" placeholder="e.g. I have a family of 4 with one person having wheelchair needs and hospital need"></textarea>
+                  </div>
+                  <div class="nl-chips-container">
+                    <span class="chips-label">Quick Prompts:</span>
+                    <button type="button" class="btn-chip" onclick="setNLExample('I have a family of 4 with one person having wheelchair needs and hospital need')">
+                      👨‍👩‍👧‍👦 Family of 4 + Wheelchair + Hospital
+                    </button>
+                    <button type="button" class="btn-chip" onclick="setNLExample('Need a nearest shelter with generator')">
+                      ⚡ Nearest shelter with generator
+                    </button>
+                    <button type="button" class="btn-chip" onclick="setNLExample('Need wheelchair accessible medical shelter in New Orleans for 3 people')">
+                      🏥 Medical + Wheelchair (New Orleans)
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Prompt user for location in Natural Language Search -->
+                <div class="form-group nl-location-group">
+                  <label for="nl-location-input">📍 Where are you starting from? (Starting Location)</label>
+                  <div class="input-with-button">
+                    <input type="text" id="nl-location-input" placeholder="e.g. Baton Rouge, LA or New Orleans, LA" value="Baton Rouge, LA" autocomplete="street-address">
+                    <button type="button" class="btn btn-secondary btn-gps" onclick="getNLLocation()" title="Use GPS Location">
+                      📍 Use GPS
+                    </button>
+                  </div>
+                  <span class="field-help">Enter your starting street address, city, or ZIP code so we can calculate turn-by-turn driving directions to nearby shelters. You can also mention it directly in your query above.</span>
+                </div>
+
+                <div class="nl-notice-box">
+                  <span class="nl-notice-icon">✨</span>
+                  <span>No need to check manual filters—our Natural Language Agent automatically extracts wheelchair accessibility, hospital readiness, backup generators, and family party size from your search query.</span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="btn-submit-nl">
+                  🤖 Search Shelters via Natural Language
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- 2. Collapsible Standard Search Feature (Clubbed Address & Coordinates + Manual Filters) -->
+          <div class="collapsible-card" id="collapse-standard">
+            <div class="collapsible-header" onclick="toggleSearchSection('standard')">
+              <div class="collapsible-title-wrap">
+                <span class="collapsible-icon">⚙️</span>
+                <span class="collapsible-title">Standard Search</span>
+                <span class="collapsible-badge">Address &amp; GPS</span>
+              </div>
+              <div class="collapsible-actions">
+                <span class="collapsible-subtext">Manual filters &amp; exact coords</span>
+                <span class="collapsible-indicator">▼</span>
+              </div>
+            </div>
+
+            <div class="collapsible-content" id="content-standard">
+              <!-- Subtabs to switch between Address and Coordinates -->
+              <div class="subtabs-container">
+                <button type="button" class="subtab active" id="subtab-address" onclick="switchStandardSubmode('address')">
+                  🏠 Search by Address / City
+                </button>
+                <button type="button" class="subtab" id="subtab-coords" onclick="switchStandardSubmode('coords')">
+                  🌐 Search by GPS Coordinates
+                </button>
+              </div>
+
+              <form id="standard-search-form" onsubmit="handleStandardSearch(event)">
+                <!-- Address Input -->
+                <div id="group-address" class="form-group">
+                  <label for="address-input">Street Address, City, or Postal Code</label>
+                  <div class="input-with-button">
+                    <input type="text" id="address-input" placeholder="e.g. Baton Rouge, LA" value="Baton Rouge, LA" autocomplete="street-address">
+                  </div>
+                  <span class="field-help">Google Maps Geocoding Tool will resolve your address to exact coordinates.</span>
+                </div>
+
+                <!-- Coordinates Input -->
+                <div id="group-coords" class="form-group hidden">
+                  <div class="coords-row">
+                    <div class="field-half">
+                      <label for="lat-input">Latitude</label>
+                      <input type="number" step="any" id="lat-input" placeholder="e.g. 30.4515">
+                    </div>
+                    <div class="field-half">
+                      <label for="lon-input">Longitude</label>
+                      <input type="number" step="any" id="lon-input" placeholder="e.g. -91.1871">
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-secondary mt-2" onclick="getCurrentLocation()">
+                    📍 Use My Current Location (GPS)
+                  </button>
+                </div>
+
+                <!-- Special Needs & Manual Filter Checkboxes (ONLY in Standard Search) -->
+                <div class="form-group">
+                  <label class="group-label">Special Needs &amp; Amenities Required</label>
+                  <div class="checkbox-grid">
+                    <label class="checkbox-card">
+                      <input type="checkbox" id="req-wheelchair">
+                      <span class="checkbox-custom"></span>
+                      <span class="checkbox-label">♿ Wheelchair Accessible</span>
+                    </label>
+                    <label class="checkbox-card">
+                      <input type="checkbox" id="req-medical">
+                      <span class="checkbox-custom"></span>
+                      <span class="checkbox-label">🏥 Medical Needs Ready</span>
+                    </label>
+                    <label class="checkbox-card">
+                      <input type="checkbox" id="req-generator">
+                      <span class="checkbox-custom"></span>
+                      <span class="checkbox-label">⚡ Backup Generator Onsite</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Simulation / Preview Toggle -->
+                <div class="form-group simulation-group">
+                  <label class="checkbox-card highlight-box">
+                    <input type="checkbox" id="include-closed" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-label">
+                      <strong>Include Inactive / Standby Shelters (Preview Mode)</strong><br>
+                      <small style="color: #666;">Database notice: All 1,326 FEMA NSS records currently hold status 'CLOSED' until active emergency declaration.</small>
+                    </span>
+                  </label>
+                </div>
+
+                <!-- Result Limit -->
+                <div class="form-group limit-group">
+                  <label for="limit-select">Max Results</label>
+                  <select id="limit-select">
+                    <option value="3" selected>Top 3 nearest</option>
+                    <option value="5">Top 5 nearest</option>
+                    <option value="10">Top 10 nearest</option>
+                  </select>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary btn-block" id="search-btn">
+                  🔍 Search Shelters (Standard)
+                </button>
+              </form>
+            </div>
+          </div>
+
         </div>
-
-        <form id="shelter-search-form" onsubmit="handleSearch(event)">
-          <!-- Address Input -->
-          <div id="group-address" class="form-group">
-            <label for="address-input">Street Address, City, or Postal Code</label>
-            <div class="input-with-button">
-              <input type="text" id="address-input" placeholder="e.g. Baton Rouge, LA" value="Baton Rouge, LA" autocomplete="street-address">
-            </div>
-            <span class="field-help">Google Maps Geocoding Tool will resolve your address to exact coordinates.</span>
-          </div>
-
-          <!-- Coordinates Input -->
-          <div id="group-coords" class="form-group hidden">
-            <div class="coords-row">
-              <div class="field-half">
-                <label for="lat-input">Latitude</label>
-                <input type="number" step="any" id="lat-input" placeholder="e.g. 30.4515">
-              </div>
-              <div class="field-half">
-                <label for="lon-input">Longitude</label>
-                <input type="number" step="any" id="lon-input" placeholder="e.g. -91.1871">
-              </div>
-            </div>
-            <button type="button" class="btn btn-secondary mt-2" onclick="getCurrentLocation()">
-              📍 Use My Current Location (GPS)
-            </button>
-          </div>
-
-          <!-- Natural Language Input -->
-          <div id="group-nl" class="form-group hidden">
-            <label for="nl-input">Describe your evacuation requirements in natural language</label>
-            <div class="nl-input-container">
-              <textarea id="nl-input" rows="2" placeholder="e.g. I have a family of 4 with one person having wheelchair needs and hospital need"></textarea>
-            </div>
-            <div class="nl-chips-container">
-              <span class="chips-label">Quick Prompts:</span>
-              <button type="button" class="btn-chip" onclick="setNLExample('I have a family of 4 with one person having wheelchair needs and hospital need')">
-                👨‍👩‍👧‍👦 Family of 4 + Wheelchair + Hospital
-              </button>
-              <button type="button" class="btn-chip" onclick="setNLExample('Need a nearest shelter with generator')">
-                ⚡ Nearest shelter with generator
-              </button>
-              <button type="button" class="btn-chip" onclick="setNLExample('Need wheelchair accessible medical shelter in New Orleans for 3 people')">
-                🏥 Medical + Wheelchair (New Orleans)
-              </button>
-            </div>
-            <span class="field-help">Our Natural Language Agent parses family size, accessibility needs, generators, and locations automatically.</span>
-          </div>
-
-          <!-- Special Needs & Filter Checkboxes -->
-          <div class="form-group">
-            <label class="group-label">Special Needs & Amenities Required</label>
-            <div class="checkbox-grid">
-              <label class="checkbox-card">
-                <input type="checkbox" id="req-wheelchair">
-                <span class="checkbox-custom"></span>
-                <span class="checkbox-label">♿ Wheelchair Accessible</span>
-              </label>
-              <label class="checkbox-card">
-                <input type="checkbox" id="req-medical">
-                <span class="checkbox-custom"></span>
-                <span class="checkbox-label">🏥 Medical Needs Ready</span>
-              </label>
-              <label class="checkbox-card">
-                <input type="checkbox" id="req-generator">
-                <span class="checkbox-custom"></span>
-                <span class="checkbox-label">⚡ Backup Generator Onsite</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Simulation / Preview Toggle -->
-          <div class="form-group simulation-group">
-            <label class="checkbox-card highlight-box">
-              <input type="checkbox" id="include-closed" checked>
-              <span class="checkbox-custom"></span>
-              <span class="checkbox-label">
-                <strong>Include Inactive / Standby Shelters (Preview Mode)</strong><br>
-                <small style="color: #666;">Database notice: All 1,326 FEMA NSS records currently hold status 'CLOSED' until active emergency declaration.</small>
-              </span>
-            </label>
-          </div>
-
-          <!-- Result Limit -->
-          <div class="form-group limit-group">
-            <label for="limit-select">Max Results</label>
-            <select id="limit-select">
-              <option value="3" selected>Top 3 nearest</option>
-              <option value="5">Top 5 nearest</option>
-              <option value="10">Top 10 nearest</option>
-            </select>
-          </div>
-
-          <!-- Submit Button -->
-          <button type="submit" class="btn btn-primary btn-block" id="search-btn">
-            🔍 Search Shelters & Calculate Routes
-          </button>
-        </form>
       </section>
 
       <!-- Useful Tips Sidebar -->

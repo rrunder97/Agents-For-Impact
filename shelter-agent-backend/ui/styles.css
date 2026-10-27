@@ -1643,3 +1643,181 @@ select:focus {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* Collapsible Searches Accordion */
+.search-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.collapsible-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-card.active {
+  border-color: #1a73e8;
+  box-shadow: 0 3px 12px rgba(26, 115, 232, 0.12);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  background: #f8fafd;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.collapsible-card.active .collapsible-header {
+  background: #eef4fe;
+  border-bottom-color: #d2e3fc;
+}
+
+.collapsible-header:hover {
+  background: #eef4fe;
+}
+
+.collapsible-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.collapsible-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.collapsible-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.collapsible-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  border: 1px solid #d2e3fc;
+}
+
+.collapsible-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.collapsible-subtext {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.collapsible-indicator {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: transform 0.25s ease, color 0.2s ease;
+}
+
+.collapsible-card.active .collapsible-indicator {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.collapsible-content {
+  padding: 1.15rem;
+  display: block;
+}
+
+.collapsible-card:not(.active) .collapsible-content {
+  display: none;
+}
+
+/* Subtabs for Standard Search (Address vs Coordinates) */
+.subtabs-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  background: #f1f3f4;
+  padding: 0.25rem;
+  border-radius: 8px;
+}
+
+.subtab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.subtab:hover {
+  color: var(--primary);
+}
+
+.subtab.active {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* NL Location Prompt */
+.nl-location-group {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border);
+}
+
+.btn-gps {
+  white-space: nowrap;
+}
+
+.nl-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  background: #f9fbfd;
+  border: 1px solid #e2eefb;
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.79rem;
+  color: #3b5a7a;
+  margin-bottom: 1.1rem;
+  line-height: 1.4;
+}
+
+.nl-notice-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+@keyframes inputPulse {
+  0% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.6); border-color: var(--primary); }
+  50% { box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.3); border-color: var(--primary); }
+  100% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
+}
+
+.input-highlight {
+  animation: inputPulse 1s ease-in-out 2;
+}
+

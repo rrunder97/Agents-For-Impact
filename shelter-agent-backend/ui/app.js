@@ -7,42 +7,92 @@ const BOOK_SHELTER_URL = (window.location.origin && (window.location.origin.incl
   ? "/book-shelter"
   : "https://us-central1-qwiklabs-gcp-03-82491e646971.cloudfunctions.net/find-shelters";
 
-// Switch search tabs (Address vs Coordinates vs Natural Language)
-function switchTab(mode) {
-  const tabAddress = document.getElementById("tab-address");
-  const tabCoords = document.getElementById("tab-coords");
-  const tabNl = document.getElementById("tab-nl");
+// Collapsible Search Accordion Toggles
+function toggleSearchSection(sectionName) {
+  const nlCard = document.getElementById("collapse-nl");
+  const standardCard = document.getElementById("collapse-standard");
+  if (!nlCard || !standardCard) return;
+
+  if (sectionName === "nl") {
+    nlCard.classList.add("active");
+    standardCard.classList.remove("active");
+  } else if (sectionName === "standard") {
+    standardCard.classList.add("active");
+    nlCard.classList.remove("active");
+  }
+  clearError();
+}
+
+// Switch Standard Search submode (Address vs Coordinates)
+function switchStandardSubmode(submode) {
+  const subAddressBtn = document.getElementById("subtab-address");
+  const subCoordsBtn = document.getElementById("subtab-coords");
   const groupAddress = document.getElementById("group-address");
   const groupCoords = document.getElementById("group-coords");
-  const groupNl = document.getElementById("group-nl");
 
-  tabAddress?.classList.remove("active");
-  tabCoords?.classList.remove("active");
-  tabNl?.classList.remove("active");
-  groupAddress?.classList.add("hidden");
-  groupCoords?.classList.add("hidden");
-  groupNl?.classList.add("hidden");
-
-  if (mode === "address") {
-    tabAddress?.classList.add("active");
+  if (submode === "address") {
+    subAddressBtn?.classList.add("active");
+    subCoordsBtn?.classList.remove("active");
     groupAddress?.classList.remove("hidden");
-  } else if (mode === "coords") {
-    tabCoords?.classList.add("active");
+    groupCoords?.classList.add("hidden");
+  } else {
+    subCoordsBtn?.classList.add("active");
+    subAddressBtn?.classList.remove("active");
     groupCoords?.classList.remove("hidden");
-  } else if (mode === "nl") {
-    tabNl?.classList.add("active");
-    groupNl?.classList.remove("hidden");
+    groupAddress?.classList.add("hidden");
+  }
+  clearError();
+}
+
+// Backward-compatible switchTab proxy
+function switchTab(mode) {
+  if (mode === "nl") {
+    toggleSearchSection("nl");
+  } else {
+    toggleSearchSection("standard");
+    switchStandardSubmode(mode === "coords" ? "coords" : "address");
   }
 }
 
-// Quick fill example and submit
+// Quick fill Natural Language example and auto-submit
 function setNLExample(promptText) {
-  switchTab("nl");
+  toggleSearchSection("nl");
   const nlInput = document.getElementById("nl-input");
   if (nlInput) {
     nlInput.value = promptText;
   }
-  handleSearch(new Event("submit"));
+  handleNLSearch(new Event("submit"));
+}
+
+// Get user current geolocation for Natural Language Search
+function getNLLocation() {
+  const locInput = document.getElementById("nl-location-input");
+  if (!navigator.geolocation) {
+    showError("Geolocation is not supported by your browser.");
+    return;
+  }
+
+  if (locInput) {
+    locInput.placeholder = "Acquiring GPS coordinates...";
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude.toFixed(4);
+      const lon = position.coords.longitude.toFixed(4);
+      if (locInput) {
+        locInput.value = `${lat}, ${lon}`;
+      }
+      clearError();
+    },
+    (err) => {
+      if (locInput) {
+        locInput.placeholder = "e.g. Baton Rouge, LA or New Orleans, LA";
+      }
+      showError(`Unable to retrieve GPS coordinates: ${err.message}. Please enter your city or address.`);
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
 }
 
 // Toggle Data Sources Information Modal
@@ -77,7 +127,7 @@ function toggleTrace(shelterId) {
   }
 }
 
-// Get user current geolocation from browser GPS
+// Get user current geolocation for Standard GPS mode
 function getCurrentLocation() {
   if (!navigator.geolocation) {
     showError("Geolocation is not supported by your browser.");
@@ -105,27 +155,77 @@ function getCurrentLocation() {
   );
 }
 
-// Submit search query
-async function handleSearch(event) {
+// Handle Natural Language Search Submission
+async function handleNLSearch(event) {
   if (event && event.preventDefault) {
     event.preventDefault();
   }
   clearError();
 
-  const isAddressMode = document.getElementById("tab-address")?.classList.contains("active");
-  const isCoordsMode = document.getElementById("tab-coords")?.classList.contains("active");
-  const isNlMode = document.getElementById("tab-nl")?.classList.contains("active");
+  const nlQuery = document.getElementById("nl-input")?.value?.trim() || "";
+  const locationVal = document.getElementById("nl-location-input")?.value?.trim() || "";
 
+  if (!nlQuery) {
+    showError("Please describe your evacuation needs or special requirements in plain language.");
+    document.getElementById("nl-input")?.focus();
+    return;
+  }
+
+  // Prompt user for location if empty and not recognized in the natural query text
+  if (!locationVal) {
+    const cityPattern = /\b(baton rouge|new orleans|shreveport|lafayette|lake charles|kenner|bossier city|monroe|alexandria|houma)\b/i;
+    if (!cityPattern.test(nlQuery)) {
+      showError("📍 Please specify your starting location (e.g. Baton Rouge, LA or click '📍 Use GPS') so we can calculate driving routes to nearby shelters.");
+      const locInput = document.getElementById("nl-location-input");
+      if (locInput) {
+        locInput.focus();
+        locInput.classList.add("input-highlight");
+        setTimeout(() => locInput.classList.remove("input-highlight"), 2500);
+      }
+      return;
+    }
+  }
+
+  // Build payload: In Natural Language search, manual checkboxes for accessibility/hospitals are hidden
+  // because user inputs their requirements in their search prompt.
+  const payload = {
+    nl_query: nlQuery,
+    include_closed: true
+  };
+
+  if (locationVal) {
+    const coordMatch = locationVal.match(/^([-+]?\d{1,2}(?:\.\d+)?)\s*,\s*([-+]?\d{1,3}(?:\.\d+)?)$/);
+    if (coordMatch) {
+      payload.latitude = parseFloat(coordMatch[1]);
+      payload.longitude = parseFloat(coordMatch[2]);
+    } else {
+      payload.address = locationVal;
+    }
+  }
+
+  const searchOriginLabel = `Natural Language: "${nlQuery.length > 45 ? nlQuery.substring(0, 42) + '...' : nlQuery}" ${locationVal ? `(from ${locationVal})` : ''}`;
+
+  await executeSearch(payload, searchOriginLabel);
+}
+
+// Handle Standard Search Submission
+async function handleStandardSearch(event) {
+  if (event && event.preventDefault) {
+    event.preventDefault();
+  }
+  clearError();
+
+  const isAddressMode = document.getElementById("subtab-address")?.classList.contains("active");
   const address = document.getElementById("address-input")?.value?.trim() || "";
   const latVal = document.getElementById("lat-input")?.value?.trim() || "";
   const lonVal = document.getElementById("lon-input")?.value?.trim() || "";
-  const nlQuery = document.getElementById("nl-input")?.value?.trim() || "";
 
-  const reqWheelchair = Boolean((document.getElementById("req-wheelchair") || document.getElementById("filter-wheelchair"))?.checked);
-  const reqMedical = Boolean((document.getElementById("req-medical") || document.getElementById("filter-medical"))?.checked);
-  const reqGenerator = Boolean((document.getElementById("req-generator") || document.getElementById("filter-generator"))?.checked);
-  const includeClosed = Boolean((document.getElementById("include-closed") || document.getElementById("filter-closed"))?.checked ?? true);
-  const limitVal = parseInt((document.getElementById("limit-select") || document.getElementById("filter-limit"))?.value || "3", 10) || 3;
+  // Manual Special Needs & amenities checkboxes (active in Standard Search)
+  const reqWheelchair = Boolean(document.getElementById("req-wheelchair")?.checked);
+  const reqMedical = Boolean(document.getElementById("req-medical")?.checked);
+  const reqGenerator = Boolean(document.getElementById("req-generator")?.checked);
+  const includeClosed = Boolean(document.getElementById("include-closed")?.checked ?? true);
+  const limitVal = parseInt(document.getElementById("limit-select")?.value || "3", 10) || 3;
 
   const payload = {
     wheelchair_accessible: reqWheelchair,
@@ -137,26 +237,17 @@ async function handleSearch(event) {
 
   let searchOriginLabel = "";
 
-  if (isNlMode) {
-    if (!nlQuery) {
-      showError("Please enter your evacuation requirements in plain language.");
-      return;
-    }
-    payload.nl_query = nlQuery;
-    if (address) {
-      payload.address = address;
-    }
-    searchOriginLabel = `Natural Language: "${nlQuery.length > 50 ? nlQuery.substring(0, 47) + '...' : nlQuery}"`;
-  } else if (isAddressMode) {
+  if (isAddressMode) {
     if (!address) {
       showError("Please enter a street address, city, or ZIP code.");
+      document.getElementById("address-input")?.focus();
       return;
     }
     payload.address = address;
     searchOriginLabel = address;
   } else {
     if (!latVal || !lonVal) {
-      showError("Please enter both Latitude and Longitude, or use 'Use My Current Location'.");
+      showError("Please enter both Latitude and Longitude, or click 'Use My Current Location'.");
       return;
     }
     const lat = parseFloat(latVal);
@@ -170,6 +261,21 @@ async function handleSearch(event) {
     searchOriginLabel = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
   }
 
+  await executeSearch(payload, searchOriginLabel);
+}
+
+// Fallback search router
+async function handleSearch(event) {
+  const isNlActive = document.getElementById("collapse-nl")?.classList.contains("active");
+  if (isNlActive) {
+    return handleNLSearch(event);
+  } else {
+    return handleStandardSearch(event);
+  }
+}
+
+// Common Search Executor
+async function executeSearch(payload, searchOriginLabel) {
   setLoading(true);
 
   try {

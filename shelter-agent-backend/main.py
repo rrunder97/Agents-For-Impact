@@ -70,9 +70,9 @@ def find_shelters(request):
 
     # Natural Language criteria defaults (with fallback to request_json explicit values)
     if nl_intent:
-        require_wheelchair = bool(request_json.get("wheelchair_accessible", nl_intent["wheelchair_accessible"]))
-        require_medical = bool(request_json.get("is_medical", nl_intent["is_medical"]))
-        require_generator = bool(request_json.get("generator_onsite", nl_intent["generator_onsite"]))
+        require_wheelchair = nl_intent["wheelchair_accessible"] or bool(request_json.get("wheelchair_accessible", False))
+        require_medical = nl_intent["is_medical"] or bool(request_json.get("is_medical", False))
+        require_generator = nl_intent["generator_onsite"] or bool(request_json.get("generator_onsite", False))
         limit = int(request_json.get("limit", nl_intent["limit"]))
     else:
         require_wheelchair = bool(request_json.get("wheelchair_accessible", False))
